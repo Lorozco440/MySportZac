@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "501501061020",
+    "project_id": "mysportzac",
+    "storage_bucket": "mysportzac.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:501501061020:android:b45d4d68bbb40a32b08a59",
+        "android_client_info": {
+          "package_name": "com.umg.mysportzac"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAaZo6-zi1Hfh9RgnLgsVkTFKap5mADSQI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -9,17 +9,20 @@
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="match_parent"
-        android:layout_height="207dp"
-        app:srcCompat="@mipmap/banner"/>
+        android:layout_height="244dp"
+        android:rotationY="2"
+        app:srcCompat="@mipmap/banner" />
 
     <TextView
         android:id="@+id/txtInvitation"
         style="@style/viewCustom"
-        android:paddingTop="20dp"
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
         android:gravity="center_horizontal"
+        android:paddingTop="20dp"
         android:text="@string/invitation"
-        android:textSize="15sp"
-        android:textColor="@color/orange"/>
+        android:textColor="@color/orange"
+        android:textSize="15sp" />
 
     <EditText
         android:id="@+id/etEmail"
@@ -58,34 +61,39 @@
     <TextView
         android:id="@+id/txtForgotPassword"
         style="@style/viewCustom"
+        android:layout_width="391dp"
+        android:gravity="center_horizontal"
         android:onClick="forgotPassword"
         android:paddingTop="0dp"
-        android:gravity="center_horizontal"
         android:text="@string/forgotPassword"
-        android:textSize="12sp"
-        android:textColor="@color/gray"/>
+        android:textColor="@color/gray"
+        android:textSize="12sp" />
 
     <LinearLayout
         android:id="@+id/lyTerms"
         style="@style/viewCustom"
-        android:orientation="horizontal"
-        android:background="@color/gray_dark">
+        android:layout_width="393dp"
+        android:layout_height="38dp"
+        android:background="@color/gray_dark"
+        android:orientation="horizontal">
+
         <CheckBox
             android:id="@+id/cbAcept"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="10sp"
             android:text="@string/acept"
-            android:textColor="@color/white"/>
+            android:textColor="@color/white"
+            android:textSize="10sp" />
+
         <TextView
             android:id="@+id/tvTerms"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/terms"
-            android:textSize="10sp"
-            android:textColor="@color/salmon"
             android:layout_marginLeft="5dp"
-            android:onClick="goTerms"/>
+            android:onClick="goTerms"
+            android:text="@string/terms"
+            android:textColor="@color/salmon"
+            android:textSize="10sp" />
 
     </LinearLayout>
 
@@ -101,7 +109,8 @@
         android:textAlignment="textStart"
         android:textColor="@color/black"
         android:textSize="20sp"
-        android:paddingLeft="30dp"/>
+        android:paddingLeft="30dp"
+        android:onClick="callSignInGoogle"/>
 
     <Button
         android:id="@+id/btSignFacebook"
@@ -111,11 +120,11 @@
         android:layout_marginRight="10dp"
         android:backgroundTint="@color/white"
         android:drawableLeft="@drawable/facebook"
+        android:onClick="callSignInFacebook"
+        android:paddingLeft="30dp"
         android:text="@string/facebook"
         android:textAlignment="textStart"
         android:textColor="@color/black"
-        android:textSize="20sp"
-        android:paddingLeft="30dp"/>
-
+        android:textSize="20sp" />
 
 </LinearLayout>

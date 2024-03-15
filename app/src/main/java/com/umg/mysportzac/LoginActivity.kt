@@ -70,12 +70,12 @@ class LoginActivity : AppCompatActivity() {
             inicio(currentUser.email.toString(), currentUser.providerId)
         }
     }
-    /*override fun onBackPressed() {
+    override fun onBackPressed() {
         val startMain = Intent(Intent.ACTION_MAIN)
         startMain.addCategory(Intent.CATEGORY_HOME)
         startMain.flags = Intent.FLAG_ACTIVITY_NEW_TASK
         startActivity(startMain)
-    }*/
+    }
     private fun manageLogin(){
         var tvLogin = findViewById<TextView>(R.id.tvLogin)
         email = etEmail.text.toString()

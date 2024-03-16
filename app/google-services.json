@@ -12,7 +12,20 @@
           "package_name": "com.umg.mysportzac"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "501501061020-gm7lfhdgupfhe20rldr1pdo1i7ctd7cd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.umg.mysportzac",
+            "certificate_hash": "cbc56223f7f36319a7014291bc86b1b096a3f9be"
+          }
+        },
+        {
+          "client_id": "501501061020-6jv7ufc77hiavhohfl9i9qgaabh93lof.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAaZo6-zi1Hfh9RgnLgsVkTFKap5mADSQI"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "501501061020-6jv7ufc77hiavhohfl9i9qgaabh93lof.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

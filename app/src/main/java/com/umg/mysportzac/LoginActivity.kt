@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.text.TextUtils
+import android.util.Log
 import android.view.View
 import android.widget.CheckBox
 import android.widget.EditText
@@ -28,6 +29,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.properties.Delegates
 
+@Suppress("DEPRECATION")
 class LoginActivity : AppCompatActivity() {
 
     companion object {
@@ -189,10 +191,12 @@ class LoginActivity : AppCompatActivity() {
     private fun signInGoogle(){
         var gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
-            .requestEmail().build()
+            .requestEmail()
+            .build()
 
         var googleSignInClient = GoogleSignIn.getClient(this, gso)
         googleSignInClient.signOut()
+
         startActivityForResult(googleSignInClient.signInIntent, RESULT_CODE_GOOGLE_SIGN_IN)
     }
 
@@ -202,24 +206,22 @@ class LoginActivity : AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
 
         if (requestCode == RESULT_CODE_GOOGLE_SIGN_IN) {
-
+            val task = GoogleSignIn.getSignedInAccountFromIntent(data)
             try {
-                val task = GoogleSignIn.getSignedInAccountFromIntent(data)
                 val account = task.getResult(ApiException::class.java)!!
-                if (account != null){
-                    email = account.email!!
-                    val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-                    mAuth.signInWithCredential(credential).addOnCompleteListener{
-                        if (it.isSuccessful) inicio(email, "Google")
-                        else Toast.makeText(this, "Error en la conexión con Google", Toast.LENGTH_SHORT)
-                    }
+                email = account.email!!
+                val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+                mAuth.signInWithCredential(credential).addOnCompleteListener{ task ->
+                    if (task.isSuccessful) inicio(email, "Google")
+                    else Toast.makeText(this, "Error en la conexión con Google", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: ApiException) {
-                Toast.makeText(this, "Error en la conexión con Google", Toast.LENGTH_SHORT)
+                Toast.makeText(this, "Error en la conexión con Google", Toast.LENGTH_SHORT).show()
+                Log.e("TAG", "signInWithGoogle:failure", e)
             }
         }
     }
     private fun showError (provider: String){
-        Toast.makeText(this, "Error en la conexión con $provider", Toast.LENGTH_SHORT)
+        Toast.makeText(this, "Error en la conexión con $provider", Toast.LENGTH_SHORT).show()
     }
 }

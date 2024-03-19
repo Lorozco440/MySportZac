@@ -1359,7 +1359,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:gravity="center|center"
-        android:background="@color/gray_light_trans">>
+        android:background="@color/gray_light_trans">
 
         <!--
     android:translationX="400dp"
@@ -2131,6 +2131,7 @@
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
+
 
     <include
         layout="@layout/app_bar_main"

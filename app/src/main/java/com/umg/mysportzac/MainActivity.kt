@@ -1,30 +1,56 @@
 package com.umg.mysportzac
 
-
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
 import android.media.MediaPlayer
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import androidx.appcompat.app.ActionBarDrawerToggle
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
 import com.facebook.login.LoginManager
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.PolylineOptions
+import com.google.android.gms.maps.model.RoundCap
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
+import com.umg.mysportzac.Constants.INTERVAL_LOCATION
+import com.umg.mysportzac.Constants.LIMIT_DISTANCE_ACCEPTED_BIKE
+import com.umg.mysportzac.Constants.LIMIT_DISTANCE_ACCEPTED_ROLLERSKATE
+import com.umg.mysportzac.Constants.LIMIT_DISTANCE_ACCEPTED_RUNNING
 import com.umg.mysportzac.LoginActivity.Companion.usermail
 import com.umg.mysportzac.LoginActivity.Companion.providerSession
 import com.umg.mysportzac.R.*
@@ -32,11 +58,22 @@ import com.umg.mysportzac.Utility.animateViewofFloat
 import com.umg.mysportzac.Utility.animateViewofInt
 import com.umg.mysportzac.Utility.getFormattedStopWatch
 import com.umg.mysportzac.Utility.getSecFromWatch
+import com.umg.mysportzac.Utility.roundNumber
 import com.umg.mysportzac.Utility.setHeightLinearLayout
 import me.tankery.lib.circularseekbar.CircularSeekBar
 
 
-class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener{
+class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener, OnMapReadyCallback,
+GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener{
+
+    companion object{
+        lateinit var mainContext: Context
+
+        val REQUIRED_PERMISSIONS_GPS =
+            arrayOf(
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.ACCESS_FINE_LOCATION)
+    }
 
     private var mHandler: Handler? = null
     private var mInterval = 1000
@@ -58,6 +95,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var sbSoftVolume : SeekBar
     private lateinit var sbNotifyVolume : SeekBar
 
+    private lateinit var sbHardTrack : SeekBar
+    private lateinit var sbSoftTrack : SeekBar
 
     private lateinit var npChallengeDistance: NumberPicker
     private lateinit var npChallengeDurationHH: NumberPicker
@@ -93,18 +132,54 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var csbRunWalk: CircularSeekBar
 
     private var ROUND_INTERVAL = 300
+    private var hardTime : Boolean = true
     private var TIME_RUNNING: Int = 0
 
+    private var LIMIT_DISTANCE_ACCEPTED: Double = 0.0
+    private lateinit var sportSelected : String
+
     private lateinit var lyPopupRun: LinearLayout
+
+    private lateinit var map: GoogleMap
+    private var mapCentered = true
+    private lateinit var listPoints: Iterable<LatLng>
+
+
+    private val PERMISSION_ID = 42
+    private val LOCATION_PERMISSION_REQ_CODE = 1000
+
+    private var activatedGPS: Boolean = true
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var flagSavedLocation = false
+
+    private var latitude: Double = 0.0
+    private var longitude: Double = 0.0
+    private var init_lt: Double = 0.0
+    private var init_ln: Double = 0.0
+
+    private var distance: Double = 0.0
+    private var maxSpeed: Double = 0.0
+    private var avgSpeed: Double = 0.0
+    private var speed: Double = 0.0
+
+    private var minAltitude: Double? = null
+    private var maxAltitude: Double? = null
+    private var minLatitude: Double? = null
+    private var maxLatitude: Double? = null
+    private var minLongitude: Double? = null
+    private var maxLongitude: Double? = null
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(layout.activity_main)
+        mainContext = this
 
         initObjects()
 
         initToolBar()
         initNavigationView()
+        initPermissionsGPS()
 
        //Toast.makeText(this, "Hola $usermail", Toast.LENGTH_SHORT).show()
     }
@@ -447,6 +522,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
        initChallengeMode()
        initMusic()
        hidePopUpRun()
+
+       initMap()
+     //  createMapFragment()
     }
     fun callSignOut(view: View) {
         signOut()
@@ -473,7 +551,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val intent = Intent(this, RecordActivity::class.java)
         startActivity(intent)
     }
-    fun inflateIntervalMode(v: View){
+    private fun inflateIntervalMode() {
         val lyIntervalMode = findViewById<LinearLayout>(id.lyIntervalMode)
         val lyIntervalModeSpace = findViewById<LinearLayout>(id.lyIntervalModeSpace)
         var lySoftTrack = findViewById<LinearLayout>(id.lySoftTrack)
@@ -512,6 +590,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
     }
+
     fun inflateChallenges(v: View){
         val lyChallengesSpace = findViewById<LinearLayout>(id.lyChallengesSpace)
         val lyChallenges = findViewById<LinearLayout>(id.lyChallenges)
@@ -599,8 +678,383 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             lySettingsVolumes.translationY = -300f
         }
     }
+
+    private fun initMap(){
+        listPoints = arrayListOf()
+        (listPoints as ArrayList<LatLng>).clear()
+
+        createMapFragment()
+        var lyOpenerButton = findViewById<LinearLayout>(R.id.lyOpenerButton)
+        if (allPermissionsGrantedGPS()) lyOpenerButton.isEnabled = true
+        else lyOpenerButton.isEnabled = false
+
+    }
+
+    override fun onMyLocationButtonClick(): Boolean {
+        return false
+    }
+
+    override fun onMyLocationClick(p0: Location) {
+        TODO("Not yet implemented")
+    }
+
+
+    private fun createMapFragment(){
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.fragmentMap) as SupportMapFragment?
+        mapFragment?.getMapAsync(this)
+    }
+    override fun onMapReady(googleMap: GoogleMap) {
+        map = googleMap
+
+        googleMap.mapType = GoogleMap.MAP_TYPE_HYBRID
+        enableMyLocation()
+        map.setOnMyLocationButtonClickListener(this)
+        map.setOnMyLocationClickListener(this)
+        map.setOnMapLongClickListener { mapCentered = false }
+        map.setOnMapClickListener { mapCentered = false }
+
+        manageLocation()
+
+        centerMap(init_lt, init_ln)
+
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int,permissions: Array<out String>,grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        when (requestCode){
+            LOCATION_PERMISSION_REQ_CODE -> {
+                var lyOpenerButton = findViewById<LinearLayout>(R.id.lyOpenerButton)
+
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+                    lyOpenerButton.isEnabled = true
+                else{
+                    var lyMap = findViewById<LinearLayout>(R.id.lyMap)
+                    if (lyMap.height > 0){
+                        setHeightLinearLayout(lyMap, 0)
+
+                        var lyFragmentMap = findViewById<LinearLayout>(R.id.lyFragmentMap)
+                        lyFragmentMap.translationY= -300f
+
+                        var ivOpenClose = findViewById<ImageView>(R.id.ivOpenClose)
+                        ivOpenClose.setRotation(0f)
+                    }
+
+                    lyOpenerButton.isEnabled = false
+
+                }
+            }
+        }
+    }
+
+    private fun enableMyLocation(){
+        if (!::map.isInitialized)return
+        if (ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+
+            && ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLocation()
+            return
+        }
+        else map.isMyLocationEnabled = true
+
+    }
+
+    private fun centerMap(lt: Double, ln: Double){
+        val posMap = LatLng(lt,ln)
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(posMap, 16f),1000, null)
+    }
+
+    fun changeTypeMap(v: View){
+        var ivTypeMap = findViewById<ImageView>(R.id.ivTypeMap)
+        if (map.mapType == GoogleMap.MAP_TYPE_HYBRID){
+            map.mapType = GoogleMap.MAP_TYPE_NORMAL
+            ivTypeMap.setImageResource(R.drawable.map_type_hybrid)
+        }
+        else{
+            map.mapType = GoogleMap.MAP_TYPE_HYBRID
+            ivTypeMap.setImageResource(R.drawable.map_type_normal)
+        }
+    }
+
+    fun callCenterMap(v: View){
+        mapCentered = true
+        if (latitude == 0.0) centerMap(init_lt, init_ln)
+        else centerMap(latitude, longitude)
+    }
+
+    fun callShowHideMap(v: View){
+        if (allPermissionsGrantedGPS()){
+            var lyMap = findViewById<LinearLayout>(R.id.lyMap)
+            var lyFragmentMap = findViewById<LinearLayout>(R.id.lyFragmentMap)
+            var ivOpenClose = findViewById<ImageView>(R.id.ivOpenClose)
+
+            if (lyMap.height == 0){
+                setHeightLinearLayout(lyMap, 1157)
+                animateViewofFloat(lyFragmentMap, "translationY", 0f, 0)
+                ivOpenClose.setRotation(180f)
+            }
+            else{
+                setHeightLinearLayout(lyMap, 0)
+                lyFragmentMap.translationY= -300f
+                ivOpenClose.setRotation(0f)
+            }
+
+        }
+        else requestPermissionLocation()
+    }
+
+    private fun initPermissionsGPS(){
+        if (allPermissionsGrantedGPS())
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        else
+            requestPermissionLocation()
+    }
+    private fun requestPermissionLocation(){
+        ActivityCompat.requestPermissions(this, arrayOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_ID)
+    }
+    private fun allPermissionsGrantedGPS() = REQUIRED_PERMISSIONS_GPS.all{
+        ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
+    }
+    private fun islocationEnabled():Boolean{
+        var locationManager: LocationManager
+        = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return  locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+    private fun activationLocation(){
+        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        startActivity(intent)
+    }
+
+    private fun checkPermission(): Boolean{
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+    }
+    private fun manageLocation(){
+        if (checkPermission()){
+
+            if (islocationEnabled()){
+                if (ActivityCompat.checkSelfPermission(this,
+                        Manifest.permission.ACCESS_FINE_LOCATION) ==
+                    PackageManager.PERMISSION_GRANTED
+                    &&  ActivityCompat.checkSelfPermission(this,
+                        Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                    PackageManager.PERMISSION_GRANTED) {
+
+
+                    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                        requestNewLocationData()
+                    }
+                }
+            }
+            else activationLocation()
+        }
+        else requestPermissionLocation()
+    }
+    @SuppressLint("MissingPermission")
+    private fun requestNewLocationData(){
+        var mLocationRequest = com.google.android.gms.location.LocationRequest()
+        mLocationRequest.priority = PRIORITY_HIGH_ACCURACY
+        mLocationRequest.interval = 0
+        mLocationRequest.fastestInterval = 0
+        mLocationRequest.numUpdates = 1
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        fusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallBack, Looper.myLooper())
+
+
+    }
+    private val mLocationCallBack = object: LocationCallback(){
+        override fun onLocationResult(locationResult: LocationResult) {
+            var mLastLocation : Location = locationResult.lastLocation
+
+            init_lt = mLastLocation.latitude
+            init_ln = mLastLocation.longitude
+
+            if (timeInSeconds > 0L) registerNewLocation(mLastLocation)
+        }
+    }
+
+    private fun registerNewLocation(location: Location){
+        var new_latitude: Double = location.latitude
+        var new_longitude: Double = location.longitude
+
+        if (flagSavedLocation){
+            if (timeInSeconds >= INTERVAL_LOCATION){
+                var distanceInterval = calculateDistance(new_latitude, new_longitude)
+
+                if ( distanceInterval <= LIMIT_DISTANCE_ACCEPTED){
+                    updateSpeeds(distanceInterval)
+                    refreshInterfaceData()
+
+                    var newPos = LatLng (new_latitude, new_longitude)
+                    (listPoints as ArrayList<LatLng>).add(newPos)
+                    createPolylines(listPoints)
+                }
+
+
+            }
+        }
+        latitude = new_latitude
+        longitude = new_longitude
+
+        if (mapCentered == true) centerMap(latitude, longitude)
+        if (minLatitude == null){
+            minLatitude = latitude
+            maxLatitude = latitude
+            minLongitude = longitude
+            maxLongitude = longitude
+        }
+        if (latitude < minLatitude!!) minLatitude = latitude
+        if (latitude > maxLatitude!!) maxLatitude = latitude
+        if (longitude < minLongitude!!) minLongitude = longitude
+        if (longitude > maxLongitude!!) maxLongitude = longitude
+
+        if (location.hasAltitude()){
+            if (maxAltitude == null){
+                maxAltitude = location.altitude
+                minAltitude = location.altitude
+            }
+            if (location.latitude > maxAltitude!!) maxAltitude = location.altitude
+            if (location.latitude < minAltitude!!) minAltitude = location.altitude
+        }
+
+    }
+
+    private fun calculateDistance(n_lt: Double, n_lg: Double): Double{
+        val radioTierra = 6371.0 //en kilómetros
+
+        val dLat = Math.toRadians(n_lt - latitude)
+        val dLng = Math.toRadians(n_lg - longitude)
+        val sindLat = Math.sin(dLat / 2)
+        val sindLng = Math.sin(dLng / 2)
+        val va1 =
+            Math.pow(sindLat, 2.0) + (Math.pow(sindLng, 2.0)
+                    * Math.cos(Math.toRadians(latitude)) * Math.cos(
+                Math.toRadians( n_lt  )
+            ))
+        val va2 = 2 * Math.atan2(Math.sqrt(va1), Math.sqrt(1 - va1))
+        var n_distance =  radioTierra * va2
+
+        if (n_distance < LIMIT_DISTANCE_ACCEPTED) distance += n_distance
+
+        return n_distance
+    }
+
+    private fun updateSpeeds(d: Double) {
+        //la distancia se calcula en km, asi que la pasamos a metros para el calculo de velocidad
+        //convertirmos m/s a km/h multiplicando por 3.6
+        speed = ((d * 1000) / INTERVAL_LOCATION) * 3.6
+        if (speed > maxSpeed) maxSpeed = speed
+        avgSpeed = ((distance * 1000) / timeInSeconds) * 3.6
+    }
+
+    private fun refreshInterfaceData(){
+        var tvCurrentDistance = findViewById<TextView>(R.id.tvCurrentDistance)
+        var tvCurrentAvgSpeed = findViewById<TextView>(R.id.tvCurrentAvgSpeed)
+        var tvCurrentSpeed = findViewById<TextView>(R.id.tvCurrentSpeed)
+        tvCurrentDistance.text = roundNumber(distance.toString(), 2)
+        tvCurrentAvgSpeed.text = roundNumber(avgSpeed.toString(), 1)
+        tvCurrentSpeed.text = roundNumber(speed.toString(), 1)
+
+
+        csbCurrentDistance.progress = distance.toFloat()
+
+        csbCurrentAvgSpeed.progress = avgSpeed.toFloat()
+
+        csbCurrentSpeed.progress = speed.toFloat()
+
+        if (speed == maxSpeed){
+            csbCurrentMaxSpeed.max = csbRecordSpeed.max
+            csbCurrentMaxSpeed.progress = speed.toFloat()
+
+            csbCurrentSpeed.max = csbRecordSpeed.max
+        }
+    }
+
+    private fun createPolylines(listPosition: Iterable<LatLng>){
+        val polylineOptions = PolylineOptions()
+            .width(25f)
+            .color(ContextCompat.getColor(this, R.color.salmon_dark))
+            .addAll(listPosition)
+
+        val polyline = map.addPolyline(polylineOptions)
+        polyline.startCap = RoundCap()
+
+    }
+
+
+    fun selectBike(v: View){
+        if (timeInSeconds.toInt() == 0) selectSport("Bike")
+    }
+    fun selectRollerSkate(v: View){
+        if (timeInSeconds.toInt() == 0) selectSport("RollerSkate")
+    }
+    fun selectRunning(v: View){
+        if (timeInSeconds.toInt() == 0) selectSport("Running")
+    }
+    private fun selectSport(sport: String){
+
+        sportSelected = sport
+
+        var lySportBike = findViewById<LinearLayout>(R.id.lySportBike)
+        var lySportRollerSkate = findViewById<LinearLayout>(R.id.lySportRollerSkate)
+        var lySportRunning = findViewById<LinearLayout>(R.id.lySportRunning)
+
+        when (sport){
+            "Bike"->{
+                LIMIT_DISTANCE_ACCEPTED = LIMIT_DISTANCE_ACCEPTED_BIKE
+
+                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.orange))
+                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
+                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
+            }
+            "RollerSkate"->{
+                LIMIT_DISTANCE_ACCEPTED = LIMIT_DISTANCE_ACCEPTED_ROLLERSKATE
+
+                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
+                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.orange))
+                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
+            }
+            "Running"->{
+                LIMIT_DISTANCE_ACCEPTED = LIMIT_DISTANCE_ACCEPTED_RUNNING
+
+                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
+                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
+                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.orange))
+            }
+
+        }
+    }
+
+
     fun startOrStopButtonClicked(v: View){
-        manageRun()
+        manageStarStop()
+    }
+    private fun manageStarStop(){
+        if (timeInSeconds == 0L && islocationEnabled() == false){
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.alertActivationGPSTitle))
+                .setMessage(getString(R.string.alertActivationGPSDescription))
+                .setPositiveButton(R.string.aceptActivationGPS,
+                    DialogInterface.OnClickListener{dialog, which ->
+                        activationLocation()
+                    })
+                .setNegativeButton(R.string.ignoreActivationGPS,
+                    DialogInterface.OnClickListener{dialog, which ->
+                        activatedGPS = false
+                        manageRun()
+                    })
+                .setCancelable(true)
+                .show()
+        }
+        else manageRun()
     }
     private fun manageRun(){
 
@@ -621,6 +1075,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             tvChrono.setTextColor(ContextCompat.getColor(this, R.color.chrono_running))
 
             mpHard?.start()
+
+            if (activatedGPS){
+                flagSavedLocation = false
+                manageLocation()
+                flagSavedLocation = true
+                manageLocation()
+            }
         }
 
         if(!startButtonClicked){
@@ -696,6 +1157,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
                 updateTimesTrack(true, true)
 
+                if (activatedGPS && timeInSeconds.toInt() % INTERVAL_LOCATION == 0) manageLocation()
+
                 if (swIntervalMode.isChecked){
                     checkStopRun(timeInSeconds)
                     checkNewRound(timeInSeconds)
@@ -719,9 +1182,26 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         timeInSeconds = 0
         rounds = 1
+        hardTime = true
+
+        distance = 0.0
+        maxSpeed = 0.0
+        avgSpeed = 0.0
+
+        minAltitude = null
+        maxAltitude = null
+        minLatitude = null
+        maxLatitude = null
+        minLongitude = null
+        maxLongitude = null
+
+        (listPoints as ArrayList<LatLng>).clear()
 
         challengeDistance = 0f
         challengeDuration = 0
+
+        activatedGPS = true
+        flagSavedLocation = false
 
         initStopWatch()
     }
@@ -738,15 +1218,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         fbCamara.isVisible = false
 
-        val tvRounds: TextView = findViewById(R.id.tvRounds) as TextView
-        tvRounds.text = getString(R.string.rounds)
-
         val tvCurrentDistance: TextView = findViewById(R.id.tvCurrentDistance)
         val tvCurrentAvgSpeed: TextView = findViewById(R.id.tvCurrentAvgSpeed)
         val tvCurrentSpeed: TextView = findViewById(R.id.tvCurrentSpeed)
         tvCurrentDistance.text = "0.0"
         tvCurrentAvgSpeed.text = "0.0"
         tvCurrentSpeed.text = "0.0"
+
 
         tvDistanceRecord.setTextColor(ContextCompat.getColor(this, R.color.gray_dark))
         tvAvgSpeedRecord.setTextColor(ContextCompat.getColor(this, R.color.gray_dark))
@@ -757,6 +1235,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         csbCurrentSpeed.progress = 0f
         csbCurrentMaxSpeed.progress = 0f
 
+        val tvRounds: TextView = findViewById(R.id.tvRounds) as TextView
+        tvRounds.text = getString(R.string.rounds)
+
         val lyChronoProgressBg = findViewById<LinearLayout>(R.id.lyChronoProgressBg)
         val lyRoundProgressBg = findViewById<LinearLayout>(R.id.lyRoundProgressBg)
         lyChronoProgressBg.translationX = -widthAnimations.toFloat()
@@ -765,13 +1246,20 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         swIntervalMode.isClickable = true
         npDurationInterval.isEnabled = true
         csbRunWalk.isEnabled = true
+        inflateIntervalMode()
 
         swChallenges.isClickable = true
         npChallengeDistance.isEnabled = true
         npChallengeDurationHH.isEnabled = true
         npChallengeDurationMM.isEnabled = true
         npChallengeDurationSS.isEnabled = true
+
+
+        sbHardTrack.isEnabled = false
+        sbSoftTrack.isEnabled = false
+
     }
+
     private fun uptadeProgressBarRound(secs: Long){
         var s = secs.toInt()
         while (s>=ROUND_INTERVAL) s-=ROUND_INTERVAL

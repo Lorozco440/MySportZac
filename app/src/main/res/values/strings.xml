@@ -41,6 +41,11 @@
     <string name="navigation_drawer_open">Menu</string>
     <string name="navigation_drawer_close">Cerrar</string>
 
+    <string name="alertActivationGPSTitle">Permitir acceso a ubicación</string>
+    <string name="alertActivationGPSDescription">Si desea obtener datos de su carrera como la distancia recorrida y la velocidad debe activar el GPS</string>
+    <string name="ignoreActivationGPS">Ignorar</string>
+    <string name="aceptActivationGPS">Activar</string>
+
     <string name="start">GO!</string>
     <string name="stop">STOP</string>
     <string name="finish">Finalizar</string>

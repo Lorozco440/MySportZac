@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/orange"
+    android:background="@color/blue_trans"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackgroundBorderless"
@@ -516,6 +516,7 @@
         android:layout_height="wrap_content"
         android:paddingTop="16dp"
         android:text="@string/user"
+        android:textStyle="bold"
         android:textColor="@color/white"/>
 
     <TextView
@@ -524,7 +525,8 @@
         android:layout_height="wrap_content"
         android:paddingTop="16dp"
         android:text="@string/nav_hi"
-        android:textColor="@color/gray_dark" />
+        android:textStyle="italic"
+        android:textColor="@color/black" />
 
 
 </LinearLayout>

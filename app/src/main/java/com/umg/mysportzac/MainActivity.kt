@@ -2,15 +2,11 @@ package com.umg.mysportzac
 
 
 import android.content.Intent
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -38,8 +34,6 @@ import com.umg.mysportzac.Utility.getFormattedStopWatch
 import com.umg.mysportzac.Utility.getSecFromWatch
 import com.umg.mysportzac.Utility.setHeightLinearLayout
 import me.tankery.lib.circularseekbar.CircularSeekBar
-import java.security.MessageDigest
-import java.security.NoSuchAlgorithmException
 
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener{

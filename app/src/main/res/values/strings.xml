@@ -41,6 +41,9 @@
     <string name="navigation_drawer_open">Menu</string>
     <string name="navigation_drawer_close">Cerrar</string>
 
+    <string name="alertClearPreferencesTitle">¿Quieres borrar tus preferencias de carrera?</string>
+    <string name="alertClearPreferencesDescription">Borraremos los ajustes de volumen y carrera (modo y tiempo de intervalos) de tu útlima carrera</string>
+
     <string name="alertActivationGPSTitle">Permitir acceso a ubicación</string>
     <string name="alertActivationGPSDescription">Si desea obtener datos de su carrera como la distancia recorrida y la velocidad debe activar el GPS</string>
     <string name="ignoreActivationGPS">Ignorar</string>

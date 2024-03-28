@@ -1,10 +1,12 @@
 package com.umg.mysportzac
 
 import android.Manifest
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
@@ -17,12 +19,15 @@ import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.NumberPicker
+import android.widget.RelativeLayout
 import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
@@ -51,6 +56,27 @@ import com.umg.mysportzac.Constants.INTERVAL_LOCATION
 import com.umg.mysportzac.Constants.LIMIT_DISTANCE_ACCEPTED_BIKE
 import com.umg.mysportzac.Constants.LIMIT_DISTANCE_ACCEPTED_ROLLERSKATE
 import com.umg.mysportzac.Constants.LIMIT_DISTANCE_ACCEPTED_RUNNING
+import com.umg.mysportzac.Constants.key_challengeAutofinish
+import com.umg.mysportzac.Constants.key_challengeDistance
+import com.umg.mysportzac.Constants.key_challengeDurationHH
+import com.umg.mysportzac.Constants.key_challengeDurationMM
+import com.umg.mysportzac.Constants.key_challengeDurationSS
+import com.umg.mysportzac.Constants.key_challengeNofify
+import com.umg.mysportzac.Constants.key_hardVol
+import com.umg.mysportzac.Constants.key_intervalDuration
+import com.umg.mysportzac.Constants.key_maxCircularSeekBar
+import com.umg.mysportzac.Constants.key_modeChallenge
+import com.umg.mysportzac.Constants.key_modeChallengeDistance
+import com.umg.mysportzac.Constants.key_modeChallengeDuration
+import com.umg.mysportzac.Constants.key_modeInterval
+import com.umg.mysportzac.Constants.key_notifyVol
+import com.umg.mysportzac.Constants.key_progressCircularSeekBar
+import com.umg.mysportzac.Constants.key_provider
+import com.umg.mysportzac.Constants.key_runningTime
+import com.umg.mysportzac.Constants.key_selectedSport
+import com.umg.mysportzac.Constants.key_softVol
+import com.umg.mysportzac.Constants.key_userApp
+import com.umg.mysportzac.Constants.key_walkingTime
 import com.umg.mysportzac.LoginActivity.Companion.usermail
 import com.umg.mysportzac.LoginActivity.Companion.providerSession
 import com.umg.mysportzac.R.*
@@ -74,6 +100,8 @@ GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener{
                 Manifest.permission.ACCESS_COARSE_LOCATION,
                 Manifest.permission.ACCESS_FINE_LOCATION)
     }
+    private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var editor: SharedPreferences.Editor
 
     private var mHandler: Handler? = null
     private var mInterval = 1000
@@ -84,6 +112,9 @@ GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener{
     private lateinit var drawer: DrawerLayout
 
     private lateinit var fbCamara: FloatingActionButton
+
+    private lateinit var cbNotify: CheckBox
+    private lateinit var cbAutoFinish: CheckBox
 
     private lateinit var swIntervalMode: Switch
     private lateinit var swChallenges: Switch
@@ -507,12 +538,7 @@ GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener{
     private fun notifySound(){
         mpNotify?.start()
     }
-    private fun hidePopUpRun(){
-        var lyWindow = findViewById<LinearLayout>(R.id.lyWindow)
-        lyWindow.translationX = 400f
-        lyPopupRun = findViewById(R.id.lyPopupRun)
-        lyPopupRun.isVisible = false
-    }
+
     private fun initObjects(){
        initChrono()
        hideLayouts()
@@ -524,8 +550,124 @@ GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener{
        hidePopUpRun()
 
        initMap()
+       initPreferences()
+       recoveryPreferences()
      //  createMapFragment()
     }
+
+    private fun initPreferences(){
+        sharedPreferences = getSharedPreferences("sharedPrefs_$usermail", MODE_PRIVATE)
+        editor = sharedPreferences.edit()
+    }
+
+    private fun recoveryPreferences(){
+        if (sharedPreferences.getString(key_userApp, "null") == usermail) {
+            sportSelected = sharedPreferences.getString(key_selectedSport, "Running").toString()
+
+            swIntervalMode.isChecked = sharedPreferences.getBoolean(key_modeInterval, false)
+            if (swIntervalMode.isChecked){
+                npDurationInterval.value = sharedPreferences.getInt(key_intervalDuration, 5)
+                ROUND_INTERVAL = npDurationInterval.value*60
+                csbRunWalk.progress = sharedPreferences.getFloat(key_progressCircularSeekBar, 150.0f)
+                csbRunWalk.max = sharedPreferences.getFloat(key_maxCircularSeekBar, 300.0f)
+                tvRunningTime.text = sharedPreferences.getString(key_runningTime, "2:30")
+                tvWalkingTime.text = sharedPreferences.getString(key_walkingTime, "2:30")
+                swIntervalMode.callOnClick()
+            }
+
+            swChallenges.isChecked = sharedPreferences.getBoolean(key_modeChallenge, false)
+            if (swChallenges.isChecked) {
+                swChallenges.callOnClick()
+                if (sharedPreferences.getBoolean(key_modeChallengeDuration, false)) {
+                    npChallengeDurationHH.value =
+                        sharedPreferences.getInt(key_challengeDurationHH, 1)
+                    npChallengeDurationMM.value =
+                        sharedPreferences.getInt(key_challengeDurationMM, 0)
+                    npChallengeDurationSS.value =
+                        sharedPreferences.getInt(key_challengeDurationSS, 0)
+                    getChallengeDuration(
+                        npChallengeDurationHH.value,
+                        npChallengeDurationMM.value,
+                        npChallengeDurationSS.value
+                    )
+                    challengeDistance = 0f
+
+                    showChallenge("duration")
+                }
+                if (sharedPreferences.getBoolean(key_modeChallengeDistance, false)) {
+                    npChallengeDistance.value = sharedPreferences.getInt(key_challengeDistance, 10)
+                    challengeDistance = npChallengeDistance.value.toFloat()
+                    challengeDuration = 0
+
+                    showChallenge("distance")
+                }
+            }
+            cbNotify.isChecked = sharedPreferences.getBoolean(key_challengeNofify, true)
+            cbAutoFinish.isChecked = sharedPreferences.getBoolean(key_challengeAutofinish, false)
+
+            sbHardVolume.progress = sharedPreferences.getInt(key_hardVol, 100)
+            sbSoftVolume.progress = sharedPreferences.getInt(key_softVol, 100)
+            sbNotifyVolume.progress = sharedPreferences.getInt(key_notifyVol, 100)
+
+        }
+    }
+
+    private fun savePreferences(){
+        editor.clear()
+        editor.apply{
+
+            putString(key_userApp, usermail)
+            putString(key_provider, providerSession)
+
+            putString(key_selectedSport, sportSelected)
+
+            putBoolean(key_modeInterval, swIntervalMode.isChecked)
+            putInt(key_intervalDuration, npDurationInterval.value)
+            putFloat(key_progressCircularSeekBar, csbRunWalk.progress)
+            putFloat(key_maxCircularSeekBar, csbRunWalk.max)
+            putString(key_runningTime, tvRunningTime.text.toString())
+            putString(key_walkingTime, tvWalkingTime.text.toString())
+
+            putBoolean(key_modeChallenge, swChallenges.isChecked)
+            putBoolean(key_modeChallengeDuration, !(challengeDuration == 0))
+            putInt(key_challengeDurationHH, npChallengeDurationHH.value)
+            putInt(key_challengeDurationMM, npChallengeDurationMM.value)
+            putInt(key_challengeDurationSS, npChallengeDurationSS.value)
+            putBoolean(key_modeChallengeDistance, !(challengeDistance == 0f))
+            putInt(key_challengeDistance, npChallengeDistance.value)
+
+
+            putBoolean(key_challengeNofify, cbNotify.isChecked)
+            putBoolean(key_challengeAutofinish, cbAutoFinish.isChecked)
+
+            putInt(key_hardVol, sbHardVolume.progress)
+            putInt(key_softVol, sbSoftVolume.progress)
+            putInt(key_notifyVol, sbNotifyVolume.progress)
+
+        }.apply()
+    }
+
+    private fun alertClearPreferences(){
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.alertClearPreferencesTitle))
+            .setMessage(getString(R.string.alertClearPreferencesDescription))
+            .setPositiveButton(android.R.string.ok,
+                DialogInterface.OnClickListener{dialgo, which ->
+                    callClearPreferences()
+                })
+            .setNegativeButton(android.R.string.cancel,
+                DialogInterface.OnClickListener{dialgo, which ->
+
+                })
+            .setCancelable(true)
+            .show()
+    }
+
+    private fun callClearPreferences(){
+        editor.clear().apply()
+        Toast.makeText(this, "Tus ajustes han sido reestablecidos :)", Toast.LENGTH_SHORT).show()
+    }
+
     fun callSignOut(view: View) {
         signOut()
     }
@@ -541,6 +683,7 @@ GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener{
 
         when (item.itemId){
             id.nav_item_record -> callRecordActivity()
+            id.nav_item_clearpreferences -> alertClearPreferences()
             id.nav_item_signout -> signOut()
 
         }
@@ -1174,7 +1317,10 @@ GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener{
         tvChrono.text = getFormattedStopWatch(timeInSeconds * 1000)
     }
     private fun resetClicked(){
-        resetVariablesRun()
+        savePreferences()
+
+        showPopUp()
+
         resetTimeView()
         resetInterface()
     }
@@ -1314,28 +1460,124 @@ GoogleMap.OnMyLocationButtonClickListener, GoogleMap.OnMyLocationClickListener{
         }
         else uptadeProgressBarRound(Secs)
     }
+
+    private fun showPopUp(){
+        var rlMain = findViewById<RelativeLayout>(R.id.rlMain)
+        rlMain.isEnabled = false
+
+        lyPopupRun.isVisible = true
+
+        var lyWindow = findViewById<LinearLayout>(R.id.lyWindow)
+        ObjectAnimator.ofFloat(lyWindow, "translationX", 0f ).apply {
+            duration = 200L
+            start()
+        }
+        loadDataPopUp()
+    }
+
+    private fun loadDataPopUp(){
+        showHeaderPopUp()
+        showMedals()
+        showDataRun()
+    }
+    private fun showHeaderPopUp(){
+
+    }
+    private fun showMedals(){
+        var lyMedalsRun = findViewById<LinearLayout>(R.id.lyMedalsRun)
+
+        if(activatedGPS){
+            //TODO
+        }
+        else {
+            setHeightLinearLayout(lyMedalsRun, 0)
+        }
+    }
+    private fun showDataRun(){
+        var tvDurationRun = findViewById<TextView>(R.id.tvDurationRun)
+        var lyChallengeDurationRun = findViewById<LinearLayout>(R.id.lyChallengeDurationRun)
+        var tvChallengeDurationRun = findViewById<TextView>(R.id.tvChallengeDurationRun)
+        var lyIntervalRun = findViewById<LinearLayout>(R.id.lyIntervalRun)
+        var tvIntervalRun = findViewById<TextView>(R.id.tvIntervalRun)
+
+        var lyCurrentDistance = findViewById<LinearLayout>(R.id.lyCurrentDistance)
+        var tvDistanceRun = findViewById<TextView>(R.id.tvDistanceRun)
+        var lyChallengeDistancePopUp = findViewById<LinearLayout>(R.id.lyChallengeDistancePopUp)
+        var tvChallengeDistanceRun = findViewById<TextView>(R.id.tvChallengeDistanceRun)
+        var lyUnevennessRun = findViewById<LinearLayout>(R.id.lyUnevennessRun)
+        var tvMaxUnevennessRun = findViewById<TextView>(R.id.tvMaxUnevennessRun)
+        var tvMinUnevennessRun = findViewById<TextView>(R.id.tvMinUnevennessRun)
+
+        var lyCurrentSpeeds = findViewById<LinearLayout>(R.id.lyCurrentSpeeds)
+        var tvAvgSpeedRun = findViewById<TextView>(R.id.tvAvgSpeedRun)
+        var tvMaxSpeedRun = findViewById<TextView>(R.id.tvMaxSpeedRun)
+
+        //Duration
+        tvDurationRun.setText(tvChrono.text)
+        if (challengeDuration > 0){
+            setHeightLinearLayout(lyChallengeDurationRun, 130)
+            tvChallengeDurationRun.setText(getFormattedStopWatch((challengeDuration*1000).toLong()))
+        }
+        else  setHeightLinearLayout(lyChallengeDurationRun, 0)
+
+        if (swIntervalMode.isChecked){
+            setHeightLinearLayout(lyIntervalRun, 130)
+            var details: String = "${npDurationInterval.value}mins. ("
+            details += "${tvRunningTime.text} / ${tvWalkingTime.text})"
+
+            tvIntervalRun.setText(details)
+        }
+        else setHeightLinearLayout(lyIntervalRun, 0)
+
+        //Challenge PopUp with GPS Show Distance/Speed
+        if (activatedGPS){
+            //Distance
+            tvDistanceRun.setText(roundNumber(distance.toString(), 2))
+
+            if (challengeDistance > 0f){
+                setHeightLinearLayout(lyChallengeDistancePopUp, 130)
+                tvChallengeDistanceRun.setText(challengeDistance.toString())
+            }
+            else setHeightLinearLayout(lyChallengeDistancePopUp, 0)
+
+            if (maxAltitude == null) setHeightLinearLayout(lyUnevennessRun, 0)
+            else{
+                setHeightLinearLayout(lyUnevennessRun, 130)
+                tvMaxUnevennessRun.setText(maxAltitude!!.toInt().toString())
+                tvMinUnevennessRun.setText(minAltitude!!.toInt().toString())
+            }
+
+            //Speed
+            tvAvgSpeedRun.setText(roundNumber(avgSpeed.toString(), 1))
+            tvMaxSpeedRun.setText(roundNumber(maxSpeed.toString(), 1))
+
+        }
+        //Challenge PopUp without GPS Hide Distance/Speed
+        else{
+            //Distance
+            setHeightLinearLayout(lyCurrentDistance, 0)
+            //Speed
+            setHeightLinearLayout(lyCurrentSpeeds, 0)
+
+        }
+
+    }
+
+    fun closePopUp(v: View){
+        closePopUpRun()
+    }
+    private fun closePopUpRun(){
+        hidePopUpRun()
+
+        var rlMain = findViewById<RelativeLayout>(R.id.rlMain)
+        rlMain.isEnabled = true
+
+        resetVariablesRun()
+    }
+    private fun hidePopUpRun(){
+        var lyWindow = findViewById<LinearLayout>(R.id.lyWindow)
+        lyWindow.translationX = 400f
+        lyPopupRun = findViewById(R.id.lyPopupRun)
+        lyPopupRun.isVisible = false
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

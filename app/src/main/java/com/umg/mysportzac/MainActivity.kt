@@ -3,6 +3,8 @@ package com.umg.mysportzac
 import android.Manifest
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.DialogInterface
@@ -12,6 +14,7 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import android.media.MediaPlayer
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
@@ -21,6 +24,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
+import android.widget.Button
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -34,6 +38,8 @@ import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.isVisible
@@ -41,6 +47,7 @@ import androidx.drawerlayout.widget.DrawerLayout
 import com.facebook.login.LoginManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
@@ -53,6 +60,7 @@ import com.google.android.gms.maps.model.PolylineOptions
 import com.google.android.gms.maps.model.RoundCap
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -245,6 +253,24 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private lateinit var medalsListSportSelectedDistance: ArrayList<Double>
     private lateinit var medalsListSportSelectedAvgSpeed: ArrayList<Double>
     private lateinit var medalsListSportSelectedMaxSpeed: ArrayList<Double>
+
+    private var recDistanceGold: Boolean = false
+    private var recDistanceSilver: Boolean = false
+    private var recDistanceBronze: Boolean = false
+    private var recAvgSpeedGold: Boolean = false
+    private var recAvgSpeedSilver: Boolean = false
+    private var recAvgSpeedBronze: Boolean = false
+    private var recMaxSpeedGold: Boolean = false
+    private var recMaxSpeedSilver: Boolean = false
+    private var recMaxSpeedBronze: Boolean = false
+
+    private lateinit var lyAlert: LinearLayout
+    private lateinit var lyAlertDialogBox: LinearLayout
+    private lateinit var tvAlertTitle: TextView
+    private lateinit var tvAlertDialog: TextView
+    private lateinit var btnAlertLeft: Button
+    private lateinit var btnAlertRight: Button
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(layout.activity_main)
@@ -261,17 +287,187 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         //Toast.makeText(this, "Hola $usermail", Toast.LENGTH_SHORT).show()
     }
-
     @SuppressLint("MissingSuperCall")
     override fun onBackPressed() {
 
-        if (drawer.isDrawerOpen(GravityCompat.START))
-            drawer.closeDrawer(GravityCompat.START)
-        else
-            signOut()
+        if (lyPopupRun.isVisible) closePopUpRun()
+            if (drawer.isDrawerOpen(GravityCompat.START))
+                drawer.closeDrawer(GravityCompat.START)
+            else
+                if (timeInSeconds > 0L) resetClicked()
+            alertSignOut()
+    }
+    private fun alertClearPreferences(){
+        sendMyAlertDefault(
+            getString(string.alertClearPreferencesTitle),
+            getString(string.alertClearPreferencesDescription),
+            getString(string.clearPreferencesBtnLeft),
+            getString(string.clearPreferencesBtnRight),
+            getString(string.snackBarClearPreferences))
+        {callClearPreferences()} // Función como parámetro final.
 
     }
+    private fun alertSignOut(){
+        sendMyAlertDefault(
+            getString(string.alertSignOutTitle),
+            getString(string.alertSignOutTDescription),
+            getString(string.signOutBtnLeft),
+            getString(string.signOutBtnRight),
+            getString(string.snackBarSignOut))
+        {signOut()} // Función como parámetro final.
+    }
+    private fun manageStartStop(){
+        if (LIMIT_DISTANCE_ACCEPTED == 0.0)
+            //Toast(getString(R.string.sportSelectMsg))
+        else
+            if (timeInSeconds == 0L && islocationEnabled() == false){
+                sendMyAlertDefault(
+                    getString(string.alertActivationGPSTitle),
+                    getString(string.alertActivationGPSDescription),
+                    getString(string.ignoreActivationGPS),
+                    getString(string.acceptActivationGPS),
+                    getString(string.snackBarDeleteRun))
+                {activationLocation()} // Función como parámetro final.
+            }
+            else manageRun()
+    }
+    fun calldeleteRun(v:View){
+        alertDeleteRun()
+    }
+    private fun alertDeleteRun(){
+        sendMyAlertDefault(
+            getString(string.alertDeleteRunTitle),
+            getString(string.alertDeleteRunDescription),
+            getString(string.deleteRunBtnLeft),
+            getString(string.deleteRunBtnRight),
+            getString(string.snackBarDeleteRun))
+        {DeleteRun()} // Función como parámetro final.
+    }
+    private fun DeleteRun(){
 
+        var id:String = usermail + dateRun + startTimeRun
+        id = id.replace(":", "")
+        id = id.replace("/", "")
+        var lyPopUpRun = findViewById<LinearLayout>(R.id.lyPopupRun)
+        var currentRun = Runs()
+        currentRun.distance = roundNumber(distance.toString(),1).toDouble()
+        currentRun.avgSpeed = roundNumber(avgSpeed.toString(),1).toDouble()
+        currentRun.maxSpeed = roundNumber(maxSpeed.toString(),1).toDouble()
+        currentRun.duration = tvChrono.text.toString()
+        deleteRunAndLinkedData(id, sportSelected, lyPopUpRun, currentRun)
+        loadMedalsUser()
+        setLevelSport(sportSelected)
+        closePopUpRun()
+    }
+    // Para ahorrar trabajo y manejar un estandar.
+    private fun sendMyAlertDefault(
+
+        question: String,
+        dialog: String,
+        txtBtnLeft: String,
+        txtBtnRight: String,
+        snackBarMsgWhenCallFn: String? = null,
+        callAlertFunction: () -> Unit){
+
+        sendAlert(
+            // Color con transparencia para el fondo del LienearLayout principal.
+            ContextCompat.getColor(this, color.black_trans),
+            question,
+            dialog,
+            txtBtnLeft,
+            // Color de fondo del botón izquierdo.
+            ContextCompat.getColor(this, color.blue),
+            txtBtnRight,
+            // Color de fondo del botón derecho.
+            ContextCompat.getColor(this, color.salmon),
+            true,
+            /* Los siguientes 2 parámetros son opcionales:
+               Fondo de SnackBar para mensaje de respuesta.*/
+            ContextCompat.getColor(this, color.salmon_dark),
+            /* Mensaje de respuesta. */
+            snackBarMsgWhenCallFn
+        )
+        // El siguiente parámetro es la función a ejecutar si el usuario autoriza.
+        // Debe ser una función existente con sus correspondientes parámetros.
+        { callAlertFunction() }
+    }
+
+    private fun sendAlert(
+
+        bgColor: Int,
+        question: String,
+        dialog: String,
+        txtBtnLeft: String,
+        bgColorBtnLeft: Int,
+        txtBtnRight: String,
+        bgColorBtnRight: Int,
+        areButtonsFalseAndTrue: Boolean,
+        bgColorSnackBar: Int? = null,
+        snackBarMsgWhenCallFn: String? = null,
+
+        callAlertFunction: () -> Unit){
+        lyAlert.setBackgroundColor(bgColor)
+        tvAlertTitle.text = question
+        tvAlertDialog.text = dialog
+        btnAlertLeft.text = txtBtnLeft
+        btnAlertLeft.setBackgroundColor(bgColorBtnLeft)
+        btnAlertRight.text = txtBtnRight
+        btnAlertRight.setBackgroundColor(bgColorBtnRight)
+
+        btnAlertLeft.setOnClickListener {
+            hideAlert()
+            if(!areButtonsFalseAndTrue){
+                if(snackBarMsgWhenCallFn != null)
+                    showSnackBar(snackBarMsgWhenCallFn, Snackbar.LENGTH_SHORT, bgColorSnackBar)
+                callAlertFunction()
+            }
+        }
+        btnAlertRight.setOnClickListener {
+
+            hideAlert()
+            if(areButtonsFalseAndTrue){
+                if(snackBarMsgWhenCallFn != null)
+                    showSnackBar(snackBarMsgWhenCallFn, Snackbar.LENGTH_SHORT, bgColorSnackBar)
+                callAlertFunction()
+            }
+        }
+        showAlert()
+
+    }
+    private fun showAlert(){
+
+        var rlMain = findViewById<RelativeLayout>(id.rlMain)
+        rlMain.isEnabled = false
+        lyAlert.visibility = View.VISIBLE
+        ObjectAnimator.ofFloat(lyAlertDialogBox, "translationX", 0f ).apply {
+            duration = 200L
+            start()
+
+        }
+
+    }
+    private fun hideAlert(){
+
+        var rlMain = findViewById<RelativeLayout>(id.rlMain)
+
+        lyAlert = findViewById(id.lyAlert)
+        lyAlertDialogBox = findViewById(id.lyAlertDialogBox)
+        lyAlertDialogBox = findViewById(id.lyAlertDialogBox)
+        tvAlertTitle = findViewById(id.tvAlertTitle)
+        tvAlertDialog = findViewById(id.tvAlertDialog)
+        btnAlertLeft = findViewById(id.btnAlertLeft)
+        btnAlertRight = findViewById(id.btnAlertRight)
+        lyAlert.visibility = View.INVISIBLE
+        lyAlertDialogBox.translationX = 400f
+        rlMain.isEnabled = true
+
+    }
+    private fun showSnackBar(message: String, duration: Int, bgColor: Int? = null) {
+        val mySnackbar = Snackbar.make(findViewById(id.drawer_layout), message, duration)
+        if(bgColor != null)
+            mySnackbar.setBackgroundTint(bgColor)
+        mySnackbar.show()
+    }
     private fun initToolBar(){
         val toolbar: Toolbar = findViewById(id.toolbar_main)
         setSupportActionBar(toolbar)
@@ -308,15 +504,15 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         widthAnimations = widthScreenPixels
 
-        val lyChronoProgressBg = findViewById<LinearLayout>(R.id.lyChronoProgressBg)
-        val lyRoundProgressBg = findViewById<LinearLayout>(R.id.lyRoundProgressBg)
+        val lyChronoProgressBg = findViewById<LinearLayout>(id.lyChronoProgressBg)
+        val lyRoundProgressBg = findViewById<LinearLayout>(id.lyRoundProgressBg)
         lyChronoProgressBg.translationX = -widthAnimations.toFloat()
         lyRoundProgressBg.translationX = -widthAnimations.toFloat()
 
-        val tvReset : TextView = findViewById(R.id.tvReset)
+        val tvReset : TextView = findViewById(id.tvReset)
         tvReset.setOnClickListener { resetClicked() }
 
-        fbCamara = findViewById(R.id.fbCamera)
+        fbCamara = findViewById(id.fbCamera)
         fbCamara.isVisible = false
     }
     private fun hideLayouts(){
@@ -344,16 +540,16 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         lySettingsVolumes.translationY = -300f
     }
     private fun initMetrics(){
-        csbCurrentDistance = findViewById(R.id.csbCurrentDistance)
-        csbChallengeDistance = findViewById(R.id.csbChallengeDistance)
-        csbRecordDistance = findViewById(R.id.csbRecordDistance)
+        csbCurrentDistance = findViewById(id.csbCurrentDistance)
+        csbChallengeDistance = findViewById(id.csbChallengeDistance)
+        csbRecordDistance = findViewById(id.csbRecordDistance)
 
-        csbCurrentAvgSpeed = findViewById(R.id.csbCurrentAvgSpeed)
-        csbRecordAvgSpeed = findViewById(R.id.csbRecordAvgSpeed)
+        csbCurrentAvgSpeed = findViewById(id.csbCurrentAvgSpeed)
+        csbRecordAvgSpeed = findViewById(id.csbRecordAvgSpeed)
 
-        csbCurrentSpeed = findViewById(R.id.csbCurrentSpeed)
-        csbCurrentMaxSpeed = findViewById(R.id.csbCurrentMaxSpeed)
-        csbRecordSpeed = findViewById(R.id.csbRecordSpeed)
+        csbCurrentSpeed = findViewById(id.csbCurrentSpeed)
+        csbCurrentMaxSpeed = findViewById(id.csbCurrentMaxSpeed)
+        csbRecordSpeed = findViewById(id.csbRecordSpeed)
 
         csbCurrentDistance.progress = 0f
         csbChallengeDistance.progress = 0f
@@ -363,9 +559,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         csbCurrentSpeed.progress = 0f
         csbCurrentMaxSpeed.progress = 0f
 
-        tvDistanceRecord = findViewById(R.id.tvDistanceRecord)
-        tvAvgSpeedRecord = findViewById(R.id.tvAvgSpeedRecord)
-        tvMaxSpeedRecord = findViewById(R.id.tvMaxSpeedRecord)
+        tvDistanceRecord = findViewById(id.tvDistanceRecord)
+        tvAvgSpeedRecord = findViewById(id.tvAvgSpeedRecord)
+        tvMaxSpeedRecord = findViewById(id.tvMaxSpeedRecord)
 
         tvDistanceRecord.text = ""
         tvAvgSpeedRecord.text = ""
@@ -378,9 +574,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     }
     private fun initIntervalMode(){
-        npDurationInterval = findViewById(R.id.npDurationInterval)
-        tvRunningTime = findViewById(R.id.tvRunningTime)
-        tvWalkingTime = findViewById(R.id.tvWalkingTime)
+        npDurationInterval = findViewById(id.npDurationInterval)
+        tvRunningTime = findViewById(id.tvRunningTime)
+        tvWalkingTime = findViewById(id.tvWalkingTime)
         csbRunWalk = findViewById(id.csbRunWalk)
 
         npDurationInterval.minValue = 1
@@ -490,8 +686,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         npChallengeDurationSS.setOnValueChangedListener { picker, oldVal, newVal ->
             getChallengeDuration(npChallengeDurationHH.value, npChallengeDurationMM.value, newVal)
         }
-        cbNotify = findViewById<CheckBox>(R.id.cbNotify)
-        cbAutoFinish = findViewById<CheckBox>(R.id.cbAutoFinish)
+        cbNotify = findViewById<CheckBox>(id.cbNotify)
+        cbAutoFinish = findViewById<CheckBox>(id.cbAutoFinish)
     }
     private fun setVolumes() {
         sbHardVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -518,25 +714,22 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         })
     }
     private fun updateTimesTrack(timesH: Boolean, timesS: Boolean){
-        val sbHardTrack = findViewById<SeekBar>(R.id.sbHardTrack)
-        val sbSoftTrack = findViewById<SeekBar>(R.id.sbSoftTrack)
 
-        if(timesH){
-            val tvHardPosition = findViewById<TextView>(R.id.tvHardPosition)
-            val tvHardRemaining = findViewById<TextView>(R.id.tvHardRemaining)
-            tvHardPosition.text = getFormattedStopWatch(sbHardTrack.progress.toLong())
+        if (timesH){
+            val tvHardPosition = findViewById<TextView>(id.tvHardPosition)
+            val tvHardRemaining = findViewById<TextView>(id.tvHardRemaining)
+            tvHardPosition.text = getFormattedStopWatch(mpHard!!.currentPosition.toLong())
             tvHardRemaining.text = "-" + getFormattedStopWatch( mpHard!!.duration.toLong() - sbHardTrack.progress.toLong())
         }
-        if(timesS){
-            val tvSoftPosition = findViewById<TextView>(R.id.tvSoftPosition)
-            val tvSoftRemaining = findViewById<TextView>(R.id.tvSoftRemaining)
-            tvSoftPosition.text = getFormattedStopWatch(sbSoftTrack.progress.toLong())
+        if (timesS){
+            val tvSoftPosition = findViewById<TextView>(id.tvSoftPosition)
+            val tvSoftRemaining = findViewById<TextView>(id.tvSoftRemaining)
+            tvSoftPosition.text = getFormattedStopWatch(mpSoft!!.currentPosition.toLong())
             tvSoftRemaining.text = "-" + getFormattedStopWatch( mpSoft!!.duration.toLong() - sbSoftTrack.progress.toLong())
         }
     }
     private fun setProgressTracks(){
-        val sbHardTrack = findViewById<SeekBar>(R.id.sbHardTrack)
-        val sbSoftTrack = findViewById<SeekBar>(R.id.sbSoftTrack)
+
         sbHardTrack.max = mpHard!!.duration
         sbSoftTrack.max = mpSoft!!.duration
         sbHardTrack.isEnabled = false
@@ -574,24 +767,27 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     }
     private fun initMusic(){
-        mpNotify = MediaPlayer.create(this, R.raw.notificacion)
-        mpHard = MediaPlayer.create(this, R.raw.musica_fuerte)
-        mpSoft = MediaPlayer.create(this, R.raw.musica_suave)
+        mpNotify = MediaPlayer.create(this, raw.notificacion)
+        mpHard = MediaPlayer.create(this, raw.musica_fuerte)
+        mpSoft = MediaPlayer.create(this, raw.musica_suave)
 
         mpHard?.isLooping = true
         mpSoft?.isLooping = true
 
 
-        sbHardVolume = findViewById(R.id.sbHardVolume)
-        sbSoftVolume = findViewById(R.id.sbSoftVolume)
-        sbNotifyVolume = findViewById(R.id.sbNotifyVolume)
+        sbHardVolume = findViewById(id.sbHardVolume)
+        sbSoftVolume = findViewById(id.sbSoftVolume)
+        sbNotifyVolume = findViewById(id.sbNotifyVolume)
+
+        sbHardTrack = findViewById(id.sbHardTrack)
+        sbSoftTrack = findViewById(id.sbSoftTrack)
+
         setVolumes()
         setProgressTracks()
     }
     private fun notifySound(){
         mpNotify?.start()
     }
-
     private fun initObjects(){
         initChrono()
         hideLayouts()
@@ -603,6 +799,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         hidePopUpRun()
 
         initMap()
+        hideAlert()
 
         initTotals()
         initLevels()
@@ -696,6 +893,17 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         medalsListRunningAvgSpeed.clear()
         medalsListRunningMaxSpeed.clear()
     }
+    private fun resetMedals(){
+        recDistanceGold = false
+        recDistanceSilver = false
+        recDistanceBronze = false
+        recAvgSpeedGold = false
+        recAvgSpeedSilver = false
+        recAvgSpeedBronze = false
+        recMaxSpeedGold = false
+        recMaxSpeedSilver = false
+        recMaxSpeedBronze = false
+    }
     private fun loadFromDB(){
         loadTotalsUser()
         loadMedalsUser()
@@ -766,7 +974,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
     }
     private fun setLevelBike(){
-        var lyNavLevelBike = findViewById<LinearLayout>(R.id.lyNav_LevelBike)
+        var lyNavLevelBike = findViewById<LinearLayout>(id.lyNav_LevelBike)
         if (totalsBike.totalTime!! == 0) setHeightLinearLayout(lyNavLevelBike, 0)
         else{
             setHeightLinearLayout(lyNavLevelBike, 300)
@@ -783,13 +991,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
             }
 
-            var ivLevelBike = findViewById<ImageView>(R.id.ivLevelBike)
-            var tvTotalTimeBike = findViewById<TextView>(R.id.tvTotalTimeBike)
-            var tvTotalRunsBike = findViewById<TextView>(R.id.tvTotalRunsBike)
-            var tvTotalDistanceBike = findViewById<TextView>(R.id.tvTotalDistanceBike)
-            var tvNumberLevelBike = findViewById<TextView>(R.id.tvNumberLevelBike)
+            var ivLevelBike = findViewById<ImageView>(id.ivLevelBike)
+            var tvTotalTimeBike = findViewById<TextView>(id.tvTotalTimeBike)
+            var tvTotalRunsBike = findViewById<TextView>(id.tvTotalRunsBike)
+            var tvTotalDistanceBike = findViewById<TextView>(id.tvTotalDistanceBike)
+            var tvNumberLevelBike = findViewById<TextView>(id.tvNumberLevelBike)
 
-            var levelText = "${getString(R.string.level)} ${levelBike.image!!.subSequence(6,7).toString()}"
+            var levelText = "${getString(string.level)} ${levelBike.image!!.subSequence(6,7).toString()}"
 
             tvNumberLevelBike.text = levelText
 
@@ -797,26 +1005,26 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             tvTotalTimeBike.text = tt
 
             when (levelBike.image){
-                "level_1" -> ivLevelBike.setImageResource(R.drawable.level_1)
-                "level_2" -> ivLevelBike.setImageResource(R.drawable.level_2)
-                "level_3" -> ivLevelBike.setImageResource(R.drawable.level_3)
-                "level_4" -> ivLevelBike.setImageResource(R.drawable.level_4)
-                "level_5" -> ivLevelBike.setImageResource(R.drawable.level_5)
-                "level_6" -> ivLevelBike.setImageResource(R.drawable.level_6)
-                "level_7" -> ivLevelBike.setImageResource(R.drawable.level_7)
+                "level_1" -> ivLevelBike.setImageResource(drawable.level_1)
+                "level_2" -> ivLevelBike.setImageResource(drawable.level_2)
+                "level_3" -> ivLevelBike.setImageResource(drawable.level_3)
+                "level_4" -> ivLevelBike.setImageResource(drawable.level_4)
+                "level_5" -> ivLevelBike.setImageResource(drawable.level_5)
+                "level_6" -> ivLevelBike.setImageResource(drawable.level_6)
+                "level_7" -> ivLevelBike.setImageResource(drawable.level_7)
             }
             tvTotalRunsBike.text = "${totalsBike.totalRuns}/${levelBike.RunsTarget}"
             var porcent = totalsBike.totalDistance!!.toInt() * 100 / levelBike.DistanceTarget!!.toInt()
             tvTotalDistanceBike.text = "${porcent.toInt()}%"
 
-            var csbDistanceBike = findViewById<CircularSeekBar>(R.id.csbDistanceBike)
+            var csbDistanceBike = findViewById<CircularSeekBar>(id.csbDistanceBike)
             csbDistanceBike.max = levelBike.DistanceTarget!!.toFloat()
             if (totalsBike.totalDistance!! >= levelBike.DistanceTarget!!.toDouble())
                 csbDistanceBike.progress = csbDistanceBike.max
             else
                 csbDistanceBike.progress = totalsBike.totalDistance!!.toFloat()
 
-            var csbRunsBike = findViewById<CircularSeekBar>(R.id.csbRunsBike)
+            var csbRunsBike = findViewById<CircularSeekBar>(id.csbRunsBike)
             csbRunsBike.max = levelBike.RunsTarget!!.toFloat()
             if (totalsBike.totalRuns!! >= levelBike.RunsTarget!!.toInt())
                 csbRunsBike.progress = csbRunsBike.max
@@ -827,7 +1035,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     private fun setLevelRollerSkate(){
 
-        var lyNavLevelRollerSkate = findViewById<LinearLayout>(R.id.lyNavLevelRollerSkate)
+        var lyNavLevelRollerSkate = findViewById<LinearLayout>(id.lyNavLevelRollerSkate)
         if (totalsRollerSkate.totalTime!! == 0) setHeightLinearLayout(lyNavLevelRollerSkate, 0)
         else{
 
@@ -845,26 +1053,26 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
             }
 
-            var ivLevelRollerSkate = findViewById<ImageView>(R.id.ivLevelRollerSkate)
-            var tvTotalTimeRollerSkate = findViewById<TextView>(R.id.tvTotalTimeRollerSkate)
-            var tvTotalRunsRollerSkate = findViewById<TextView>(R.id.tvTotalRunsRollerSkate)
-            var tvTotalDistanceRollerSkate = findViewById<TextView>(R.id.tvTotalDistanceRollerSkate)
+            var ivLevelRollerSkate = findViewById<ImageView>(id.ivLevelRollerSkate)
+            var tvTotalTimeRollerSkate = findViewById<TextView>(id.tvTotalTimeRollerSkate)
+            var tvTotalRunsRollerSkate = findViewById<TextView>(id.tvTotalRunsRollerSkate)
+            var tvTotalDistanceRollerSkate = findViewById<TextView>(id.tvTotalDistanceRollerSkate)
 
-            var tvNumberLevelRollerSkate = findViewById<TextView>(R.id.tvNumberLevelRollerSkate)
-            var levelText = "${getString(R.string.level)} ${levelRollerSkate.image!!.subSequence(6,7).toString()}"
+            var tvNumberLevelRollerSkate = findViewById<TextView>(id.tvNumberLevelRollerSkate)
+            var levelText = "${getString(string.level)} ${levelRollerSkate.image!!.subSequence(6,7).toString()}"
             tvNumberLevelRollerSkate.text = levelText
 
             var tt = getFormattedTotalTime(totalsRollerSkate.totalTime!!.toLong())
             tvTotalTimeRollerSkate.text = tt
 
             when (levelRollerSkate.image){
-                "level_1" -> ivLevelRollerSkate.setImageResource(R.drawable.level_1)
-                "level_2" -> ivLevelRollerSkate.setImageResource(R.drawable.level_2)
-                "level_3" -> ivLevelRollerSkate.setImageResource(R.drawable.level_3)
-                "level_4" -> ivLevelRollerSkate.setImageResource(R.drawable.level_4)
-                "level_5" -> ivLevelRollerSkate.setImageResource(R.drawable.level_5)
-                "level_6" -> ivLevelRollerSkate.setImageResource(R.drawable.level_6)
-                "level_7" -> ivLevelRollerSkate.setImageResource(R.drawable.level_7)
+                "level_1" -> ivLevelRollerSkate.setImageResource(drawable.level_1)
+                "level_2" -> ivLevelRollerSkate.setImageResource(drawable.level_2)
+                "level_3" -> ivLevelRollerSkate.setImageResource(drawable.level_3)
+                "level_4" -> ivLevelRollerSkate.setImageResource(drawable.level_4)
+                "level_5" -> ivLevelRollerSkate.setImageResource(drawable.level_5)
+                "level_6" -> ivLevelRollerSkate.setImageResource(drawable.level_6)
+                "level_7" -> ivLevelRollerSkate.setImageResource(drawable.level_7)
             }
 
 
@@ -873,14 +1081,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             var porcent = totalsRollerSkate.totalDistance!!.toInt() * 100 / levelRollerSkate.DistanceTarget!!.toInt()
             tvTotalDistanceRollerSkate.text = "${porcent.toInt()}%"
 
-            var csbDistanceRollerSkate = findViewById<CircularSeekBar>(R.id.csbDistanceRollerSkate)
+            var csbDistanceRollerSkate = findViewById<CircularSeekBar>(id.csbDistanceRollerSkate)
             csbDistanceRollerSkate.max = levelRollerSkate.DistanceTarget!!.toFloat()
             if (totalsRollerSkate.totalDistance!! >= levelRollerSkate.DistanceTarget!!.toDouble())
                 csbDistanceRollerSkate.progress = csbDistanceRollerSkate.max
             else
                 csbDistanceRollerSkate.progress = totalsRollerSkate.totalDistance!!.toFloat()
 
-            var csbRunsRollerSkate = findViewById<CircularSeekBar>(R.id.csbRunsRollerSkate)
+            var csbRunsRollerSkate = findViewById<CircularSeekBar>(id.csbRunsRollerSkate)
             csbRunsRollerSkate.max = levelRollerSkate.RunsTarget!!.toFloat()
             if (totalsRollerSkate.totalRuns!! >= levelRollerSkate.RunsTarget!!.toInt())
                 csbRunsRollerSkate.progress = csbRunsRollerSkate.max
@@ -889,7 +1097,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
     private fun setLevelRunning(){
-        var lyNavLevelRunning = findViewById<LinearLayout>(R.id.lyNavLevelRunning)
+        var lyNavLevelRunning = findViewById<LinearLayout>(id.lyNavLevelRunning)
         if (totalsRunning.totalTime!! == 0) setHeightLinearLayout(lyNavLevelRunning, 0)
         else{
 
@@ -907,41 +1115,41 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
             }
 
-            var ivLevelRunning = findViewById<ImageView>(R.id.ivLevelRunning)
-            var tvTotalTimeRunning = findViewById<TextView>(R.id.tvTotalTimeRunning)
-            var tvTotalRunsRunning = findViewById<TextView>(R.id.tvTotalRunsRunning)
-            var tvTotalDistanceRunning = findViewById<TextView>(R.id.tvTotalDistanceRunning)
+            var ivLevelRunning = findViewById<ImageView>(id.ivLevelRunning)
+            var tvTotalTimeRunning = findViewById<TextView>(id.tvTotalTimeRunning)
+            var tvTotalRunsRunning = findViewById<TextView>(id.tvTotalRunsRunning)
+            var tvTotalDistanceRunning = findViewById<TextView>(id.tvTotalDistanceRunning)
 
 
-            var tvNumberLevelRunning = findViewById<TextView>(R.id.tvNumberLevelRunning)
-            var levelText = "${getString(R.string.level)} ${levelRunning.image!!.subSequence(6,7).toString()}"
+            var tvNumberLevelRunning = findViewById<TextView>(id.tvNumberLevelRunning)
+            var levelText = "${getString(string.level)} ${levelRunning.image!!.subSequence(6,7).toString()}"
             tvNumberLevelRunning.text = levelText
 
             var tt = getFormattedTotalTime(totalsRunning.totalTime!!.toLong())
             tvTotalTimeRunning.text = tt
 
             when (levelRunning.image){
-                "level_1" -> ivLevelRunning.setImageResource(R.drawable.level_1)
-                "level_2" -> ivLevelRunning.setImageResource(R.drawable.level_2)
-                "level_3" -> ivLevelRunning.setImageResource(R.drawable.level_3)
-                "level_4" -> ivLevelRunning.setImageResource(R.drawable.level_4)
-                "level_5" -> ivLevelRunning.setImageResource(R.drawable.level_5)
-                "level_6" -> ivLevelRunning.setImageResource(R.drawable.level_6)
-                "level_7" -> ivLevelRunning.setImageResource(R.drawable.level_7)
+                "level_1" -> ivLevelRunning.setImageResource(drawable.level_1)
+                "level_2" -> ivLevelRunning.setImageResource(drawable.level_2)
+                "level_3" -> ivLevelRunning.setImageResource(drawable.level_3)
+                "level_4" -> ivLevelRunning.setImageResource(drawable.level_4)
+                "level_5" -> ivLevelRunning.setImageResource(drawable.level_5)
+                "level_6" -> ivLevelRunning.setImageResource(drawable.level_6)
+                "level_7" -> ivLevelRunning.setImageResource(drawable.level_7)
             }
 
             tvTotalRunsRunning.text = "${totalsRunning.totalRuns}/${levelRunning.RunsTarget}"
             var porcent = totalsRunning.totalDistance!!.toInt() * 100 / levelRunning.DistanceTarget!!.toInt()
             tvTotalDistanceRunning.text = "${porcent.toInt()}%"
 
-            var csbDistanceRunning = findViewById<CircularSeekBar>(R.id.csbDistanceRunning)
+            var csbDistanceRunning = findViewById<CircularSeekBar>(id.csbDistanceRunning)
             csbDistanceRunning.max = levelRunning.DistanceTarget!!.toFloat()
             if (totalsRunning.totalDistance!! >= levelRunning.DistanceTarget!!.toDouble())
                 csbDistanceRunning.progress = csbDistanceRunning.max
             else
                 csbDistanceRunning.progress = totalsRunning.totalDistance!!.toFloat()
 
-            var csbRunsRunning = findViewById<CircularSeekBar>(R.id.csbRunsRunning)
+            var csbRunsRunning = findViewById<CircularSeekBar>(id.csbRunsRunning)
             csbRunsRunning.max = levelRunning.RunsTarget!!.toFloat()
             if (totalsRunning.totalRuns!! >= levelRunning.RunsTarget!!.toInt())
                 csbRunsRunning.progress = csbRunsRunning.max
@@ -1005,7 +1213,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 Log.w(ContentValues.TAG, "Error getting documents: ", exception)
             }
     }
-
     private fun loadMedalsRollerSkate(){
         var dbRecords = FirebaseFirestore.getInstance()
         dbRecords.collection("runsRollerSkate")
@@ -1056,7 +1263,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 Log.w(ContentValues.TAG, "Error getting documents: ", exception)
             }
     }
-
     private fun loadMedalsRunning(){
         var dbRecords = FirebaseFirestore.getInstance()
         dbRecords.collection("runsRunning")
@@ -1111,7 +1317,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         sharedPreferences = getSharedPreferences("sharedPrefs_$usermail", MODE_PRIVATE)
         editor = sharedPreferences.edit()
     }
-
     private fun recoveryPreferences(){
         if (sharedPreferences.getString(key_userApp, "null") == usermail) {
             sportSelected = sharedPreferences.getString(key_selectedSport, "Running").toString()
@@ -1164,7 +1369,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
         else sportSelected = "Running"
     }
-
     private fun savePreferences(){
         editor.clear()
         editor.apply{
@@ -1199,28 +1403,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         }.apply()
     }
-
-    private fun alertClearPreferences(){
-        AlertDialog.Builder(this)
-            .setTitle(getString(R.string.alertClearPreferencesTitle))
-            .setMessage(getString(R.string.alertClearPreferencesDescription))
-            .setPositiveButton(android.R.string.ok,
-                DialogInterface.OnClickListener{dialgo, which ->
-                    callClearPreferences()
-                })
-            .setNegativeButton(android.R.string.cancel,
-                DialogInterface.OnClickListener{dialgo, which ->
-
-                })
-            .setCancelable(true)
-            .show()
-    }
-
     private fun callClearPreferences(){
         editor.clear().apply()
         Toast.makeText(this, "Tus ajustes han sido reestablecidos :)", Toast.LENGTH_SHORT).show()
     }
-
     fun callSignOut(view: View) {
         signOut()
     }
@@ -1237,13 +1423,16 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         when (item.itemId){
             id.nav_item_record -> callRecordActivity()
             id.nav_item_clearpreferences -> alertClearPreferences()
-            id.nav_item_signout -> signOut()
+            id.nav_item_signout -> alertSignOut()
 
         }
         drawer.closeDrawer(GravityCompat.START)
         return true
     }
     private fun callRecordActivity(){
+
+        if (startButtonClicked) manageStartStop()
+
         val intent = Intent(this, RecordActivity::class.java)
         startActivity(intent)
     }
@@ -1271,7 +1460,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 var lySettingsVolumesSpace = findViewById<LinearLayout>(id.lySettingsVolumesSpace)
                 setHeightLinearLayout(lySettingsVolumesSpace,600)
             }
-            var tvRunnigTime = findViewById<TextView>(R.id.tvRunningTime)
+            var tvRunnigTime = findViewById<TextView>(id.tvRunningTime)
             TIME_RUNNING = getSecFromWatch(tvRunnigTime.text.toString())
 
         }
@@ -1289,7 +1478,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
     }
-
     fun inflateChallenges(v: View){
         val lyChallengesSpace = findViewById<LinearLayout>(id.lyChallengesSpace)
         val lyChallenges = findViewById<LinearLayout>(id.lyChallenges)
@@ -1377,29 +1565,24 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             lySettingsVolumes.translationY = -300f
         }
     }
-
     private fun initMap(){
         listPoints = arrayListOf()
         (listPoints as ArrayList<LatLng>).clear()
 
         createMapFragment()
-        var lyOpenerButton = findViewById<LinearLayout>(R.id.lyOpenerButton)
+        var lyOpenerButton = findViewById<LinearLayout>(id.lyOpenerButton)
         if (allPermissionsGrantedGPS()) lyOpenerButton.isEnabled = true
         else lyOpenerButton.isEnabled = false
 
     }
-
     override fun onMyLocationButtonClick(): Boolean {
         return false
     }
-
     override fun onMyLocationClick(p0: Location) {
 
     }
-
-
     private fun createMapFragment(){
-        val mapFragment = supportFragmentManager.findFragmentById(R.id.fragmentMap) as SupportMapFragment?
+        val mapFragment = supportFragmentManager.findFragmentById(id.fragmentMap) as SupportMapFragment?
         mapFragment?.getMapAsync(this)
     }
     override fun onMapReady(googleMap: GoogleMap) {
@@ -1417,25 +1600,24 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         centerMap(init_lt, init_ln)
 
     }
-
     override fun onRequestPermissionsResult(requestCode: Int,permissions: Array<out String>,grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         when (requestCode){
             LOCATION_PERMISSION_REQ_CODE -> {
-                var lyOpenerButton = findViewById<LinearLayout>(R.id.lyOpenerButton)
+                var lyOpenerButton = findViewById<LinearLayout>(id.lyOpenerButton)
 
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)
                     lyOpenerButton.isEnabled = true
                 else{
-                    var lyMap = findViewById<LinearLayout>(R.id.lyMap)
+                    var lyMap = findViewById<LinearLayout>(id.lyMap)
                     if (lyMap.height > 0){
                         setHeightLinearLayout(lyMap, 0)
 
-                        var lyFragmentMap = findViewById<LinearLayout>(R.id.lyFragmentMap)
+                        var lyFragmentMap = findViewById<LinearLayout>(id.lyFragmentMap)
                         lyFragmentMap.translationY= -300f
 
-                        var ivOpenClose = findViewById<ImageView>(R.id.ivOpenClose)
+                        var ivOpenClose = findViewById<ImageView>(id.ivOpenClose)
                         ivOpenClose.setRotation(0f)
                     }
 
@@ -1445,7 +1627,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
     }
-
     private fun enableMyLocation(){
         if (!::map.isInitialized)return
         if (ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION)
@@ -1459,35 +1640,31 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         else map.isMyLocationEnabled = true
 
     }
-
     private fun centerMap(lt: Double, ln: Double){
         val posMap = LatLng(lt,ln)
         map.animateCamera(CameraUpdateFactory.newLatLngZoom(posMap, 16f),1000, null)
     }
-
     fun changeTypeMap(v: View){
-        var ivTypeMap = findViewById<ImageView>(R.id.ivTypeMap)
+        var ivTypeMap = findViewById<ImageView>(id.ivTypeMap)
         if (map.mapType == GoogleMap.MAP_TYPE_HYBRID){
             map.mapType = GoogleMap.MAP_TYPE_NORMAL
-            ivTypeMap.setImageResource(R.drawable.map_type_hybrid)
+            ivTypeMap.setImageResource(drawable.map_type_hybrid)
         }
         else{
             map.mapType = GoogleMap.MAP_TYPE_HYBRID
-            ivTypeMap.setImageResource(R.drawable.map_type_normal)
+            ivTypeMap.setImageResource(drawable.map_type_normal)
         }
     }
-
     fun callCenterMap(v: View){
         mapCentered = true
         if (latitude == 0.0) centerMap(init_lt, init_ln)
         else centerMap(latitude, longitude)
     }
-
     fun callShowHideMap(v: View){
         if (allPermissionsGrantedGPS()){
-            var lyMap = findViewById<LinearLayout>(R.id.lyMap)
-            var lyFragmentMap = findViewById<LinearLayout>(R.id.lyFragmentMap)
-            var ivOpenClose = findViewById<ImageView>(R.id.ivOpenClose)
+            var lyMap = findViewById<LinearLayout>(id.lyMap)
+            var lyFragmentMap = findViewById<LinearLayout>(id.lyFragmentMap)
+            var ivOpenClose = findViewById<ImageView>(id.ivOpenClose)
 
             if (lyMap.height == 0){
                 setHeightLinearLayout(lyMap, 1300)
@@ -1503,7 +1680,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
         else requestPermissionLocation()
     }
-
     private fun initPermissionsGPS(){
         if (allPermissionsGrantedGPS())
             fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -1520,7 +1696,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     private fun islocationEnabled():Boolean{
         var locationManager: LocationManager
-                = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                = getSystemService(LOCATION_SERVICE) as LocationManager
         return  locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
                 || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
@@ -1528,7 +1704,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
         startActivity(intent)
     }
-
     private fun checkPermission(): Boolean{
         return ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED &&
@@ -1558,7 +1733,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     @SuppressLint("MissingPermission")
     private fun requestNewLocationData(){
-        var mLocationRequest = com.google.android.gms.location.LocationRequest()
+        var mLocationRequest = LocationRequest()
         mLocationRequest.priority = PRIORITY_HIGH_ACCURACY
         mLocationRequest.interval = 0
         mLocationRequest.fastestInterval = 0
@@ -1579,7 +1754,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             if (timeInSeconds > 0L) registerNewLocation(mLastLocation)
         }
     }
-
     private fun registerNewLocation(location: Location){
         var new_latitude: Double = location.latitude
         var new_longitude: Double = location.longitude
@@ -1591,11 +1765,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 if ( distanceInterval <= LIMIT_DISTANCE_ACCEPTED){
                     updateSpeeds(distanceInterval)
                     refreshInterfaceData()
+
                     saveLocation(location)
 
                     var newPos = LatLng (new_latitude, new_longitude)
                     (listPoints as ArrayList<LatLng>).add(newPos)
                     createPolylines(listPoints)
+
+                    checkMedals(distance, avgSpeed, maxSpeed)
                 }
 
 
@@ -1626,7 +1803,133 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
     }
+    private fun checkMedals(d: Double, aS: Double, mS: Double){
+        if (d>0){
+            if (d >= medalsListSportSelectedDistance.get(0)){
+                recDistanceGold = true; recDistanceSilver = false; recDistanceBronze = false
+                notifyMedal("distance", "gold", "PERSONAL")
+            }
+            else{
+                if (d >= medalsListSportSelectedDistance.get(1)){
+                    recDistanceGold = false; recDistanceSilver = true; recDistanceBronze = false
+                    notifyMedal("distance", "silver", "PERSONAL")
+                }
+                else{
+                    if (d >= medalsListSportSelectedDistance.get(2)){
+                        recDistanceGold = false; recDistanceSilver = false; recDistanceBronze = true
+                        notifyMedal("distance", "bronze", "PERSONAL")
+                    }
+                }
+            }
+        }
 
+        if (aS > 0){
+            if (aS >= medalsListSportSelectedAvgSpeed.get(0)){
+                recAvgSpeedGold = true; recAvgSpeedSilver = false; recAvgSpeedBronze = false
+                notifyMedal("avgSpeed", "gold", "PERSONAL")
+            }
+            else{
+                if (aS >= medalsListSportSelectedAvgSpeed.get(1)){
+                    recAvgSpeedGold = false; recAvgSpeedSilver = true; recAvgSpeedBronze = false
+                    notifyMedal("avgSpeed", "silver", "PERSONAL")
+                }
+                else{
+                    if (aS >= medalsListSportSelectedAvgSpeed.get(2)){
+                        recAvgSpeedGold = false; recAvgSpeedSilver = false; recAvgSpeedBronze = true
+                        notifyMedal("avgSpeed", "bronze", "PERSONAL")
+                    }
+                }
+            }
+        }
+
+        if (mS > 0){
+            if (mS >= medalsListSportSelectedMaxSpeed.get(0)){
+                recMaxSpeedGold = true; recMaxSpeedSilver = false; recMaxSpeedBronze = false
+                notifyMedal("maxSpeed", "gold", "PERSONAL")
+            }
+            else{
+                if (mS >= medalsListSportSelectedMaxSpeed.get(1)){
+                    recMaxSpeedGold = false; recMaxSpeedSilver = true; recMaxSpeedBronze = false
+                    notifyMedal("maxSpeed", "silver", "PERSONAL")
+                }
+                else{
+                    if (mS >= medalsListSportSelectedMaxSpeed.get(2)){
+                        recMaxSpeedGold = false; recMaxSpeedSilver = false; recMaxSpeedBronze = true
+                        notifyMedal("maxSpeed", "bronze", "PERSONAL")
+                    }
+                }
+            }
+        }
+
+    }
+    @SuppressLint("MissingPermission")
+    private fun notifyMedal(category: String, metal: String, scope: String) {
+
+        val CHANNEL_NAME = "notifyMedal"
+        val IMPORTANCE = NotificationManager.IMPORTANCE_HIGH
+        var CHANNEL_ID = "NEW $scope RECORD - $sportSelected"
+
+        var textNotification = ""
+        when (metal) {
+            "gold" -> textNotification = "1ª "
+            "silver" -> textNotification = "2ª "
+            "bronze" -> textNotification = "3ª "
+        }
+        textNotification += "mejor marca personal en "
+        when (category) {
+            "distance" -> textNotification += "distancia recorrida"
+            "avgSpeed" -> textNotification += " velocidad promedio"
+            "maxSpeed" -> textNotification += " velocidad máxima alcanzada"
+        }
+
+        //Guardamos las medallas en una variable
+        var iconNotificacion: Int = 0
+        when (metal) {
+            "gold" -> iconNotificacion = R.drawable.medalgold
+            "silver" -> iconNotificacion = R.drawable.medalsilver
+            "bronze" -> iconNotificacion = R.drawable.medalbronze
+        }
+
+        //Constructor del Canal
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, IMPORTANCE)
+            val notificationManager: NotificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+
+            //Constructor de la Notificacion
+            var builder = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(iconNotificacion)
+                .setContentTitle(CHANNEL_ID)
+                .setContentText(textNotification)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+
+            var notificationId: Int = 0
+            when (category) {
+                "distance" ->
+                    when (metal) {
+                        "gold" -> notificationId = 11
+                        "silver" -> notificationId = 12
+                        "bronze" -> notificationId = 13
+                    }
+                "avgSpeed" ->
+                    when (metal) {
+                        "gold" -> notificationId = 21
+                        "silver" -> notificationId = 22
+                        "bronze" -> notificationId = 23
+                    }
+                "maxSpeed" ->
+                    when (metal) {
+                        "gold" -> notificationId = 31
+                        "silver" -> notificationId = 32
+                        "bronze" -> notificationId = 33
+                    }
+            }
+
+            with(NotificationManagerCompat.from(this)) {
+                notify(notificationId, builder.build())
+            }
+        }
+    }
     private fun calculateDistance(n_lt: Double, n_lg: Double): Double{
         val radioTierra = 6371.0 //en kilómetros
 
@@ -1654,31 +1957,68 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         avgSpeed = ((distance * 1000) / timeInSeconds) * 3.6
     }
     private fun refreshInterfaceData(){
-        var tvCurrentDistance = findViewById<TextView>(R.id.tvCurrentDistance)
-        var tvCurrentAvgSpeed = findViewById<TextView>(R.id.tvCurrentAvgSpeed)
-        var tvCurrentSpeed = findViewById<TextView>(R.id.tvCurrentSpeed)
+        var tvCurrentDistance = findViewById<TextView>(id.tvCurrentDistance)
+        var tvCurrentAvgSpeed = findViewById<TextView>(id.tvCurrentAvgSpeed)
+        var tvCurrentSpeed = findViewById<TextView>(id.tvCurrentSpeed)
         tvCurrentDistance.text = roundNumber(distance.toString(), 2)
         tvCurrentAvgSpeed.text = roundNumber(avgSpeed.toString(), 1)
         tvCurrentSpeed.text = roundNumber(speed.toString(), 1)
 
 
         csbCurrentDistance.progress = distance.toFloat()
+        if (distance > totalsSelectedSport.recordDistance!!){
+            tvDistanceRecord.text = roundNumber(distance.toString(), 1)
+            tvDistanceRecord.setTextColor(ContextCompat.getColor(this, color.salmon_dark))
+
+            csbCurrentDistance.max = distance.toFloat()
+            csbCurrentDistance.progress = distance.toFloat()
+
+            totalsSelectedSport.recordDistance = distance
+        }
 
         csbCurrentAvgSpeed.progress = avgSpeed.toFloat()
+        if (avgSpeed > totalsSelectedSport.recordAvgSpeed!!){
+            tvAvgSpeedRecord.text = roundNumber(avgSpeed.toString(), 1)
+            tvAvgSpeedRecord.setTextColor(ContextCompat.getColor(this, color.salmon_dark))
+
+            csbRecordAvgSpeed.max = avgSpeed.toFloat()
+            csbRecordAvgSpeed.progress = avgSpeed.toFloat()
+            csbCurrentAvgSpeed.max = avgSpeed.toFloat()
+
+            totalsSelectedSport.recordAvgSpeed = avgSpeed
+        }
+
+
+        if (speed > totalsSelectedSport.recordSpeed!!){
+            tvMaxSpeedRecord.text = roundNumber(speed.toString(), 1)
+            tvMaxSpeedRecord.setTextColor(ContextCompat.getColor(this, color.salmon_dark))
+
+            csbRecordSpeed.max = speed.toFloat()
+            csbRecordSpeed.progress = speed.toFloat()
+
+            csbCurrentMaxSpeed.max = speed.toFloat()
+            csbCurrentMaxSpeed.progress = speed.toFloat()
+
+            csbCurrentSpeed.max = speed.toFloat()
+
+            totalsSelectedSport.recordSpeed = speed
+        }
+        else{
+            if (speed == maxSpeed){
+                csbCurrentMaxSpeed.max = csbRecordSpeed.max
+                csbCurrentMaxSpeed.progress = speed.toFloat()
+
+                csbCurrentSpeed.max = csbRecordSpeed.max
+            }
+        }
 
         csbCurrentSpeed.progress = speed.toFloat()
 
-        if (speed == maxSpeed){
-            csbCurrentMaxSpeed.max = csbRecordSpeed.max
-            csbCurrentMaxSpeed.progress = speed.toFloat()
-
-            csbCurrentSpeed.max = csbRecordSpeed.max
-        }
     }
     private fun createPolylines(listPosition: Iterable<LatLng>){
         val polylineOptions = PolylineOptions()
             .width(25f)
-            .color(ContextCompat.getColor(this, R.color.salmon_dark))
+            .color(ContextCompat.getColor(this, color.salmon_dark))
             .addAll(listPosition)
 
         val polyline = map.addPolyline(polylineOptions)
@@ -1710,24 +2050,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             "color" to tvChrono.currentTextColor
         ))
     }
-    fun deleteRun(v: View){
-        var id:String = usermail + dateRun + startTimeRun
-        id = id.replace(":", "")
-        id = id.replace("/", "")
-
-        var lyPopUpRun = findViewById<LinearLayout>(R.id.lyPopupRun)
-
-        var currentRun = Runs()
-        currentRun.distance = roundNumber(distance.toString(),1).toDouble()
-        currentRun.avgSpeed = roundNumber(avgSpeed.toString(),1).toDouble()
-        currentRun.maxSpeed = roundNumber(maxSpeed.toString(),1).toDouble()
-        currentRun.duration = tvChrono.text.toString()
-
-        deleteRunAndLinkedData(id, sportSelected, lyPopUpRun, currentRun)
-        loadMedalsUser()
-        setLevelSport(sportSelected)
-        closePopUpRun()
-    }
     fun selectBike(v: View){
         if (timeInSeconds.toInt() == 0) selectSport("Bike")
     }
@@ -1741,40 +2063,52 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         sportSelected = sport
 
-        var lySportBike = findViewById<LinearLayout>(R.id.lySportBike)
-        var lySportRollerSkate = findViewById<LinearLayout>(R.id.lySportRollerSkate)
-        var lySportRunning = findViewById<LinearLayout>(R.id.lySportRunning)
+        var lySportBike = findViewById<LinearLayout>(id.lySportBike)
+        var lySportRollerSkate = findViewById<LinearLayout>(id.lySportRollerSkate)
+        var lySportRunning = findViewById<LinearLayout>(id.lySportRunning)
 
         when (sport){
             "Bike"->{
                 LIMIT_DISTANCE_ACCEPTED = LIMIT_DISTANCE_ACCEPTED_BIKE
 
-                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.orange))
-                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
-                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
+                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, color.orange))
+                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, color.gray_medium))
+                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, color.gray_medium))
 
                 levelSelectedSport = levelBike
                 totalsSelectedSport = totalsBike
+
+                medalsListSportSelectedDistance = medalsListBikeDistance
+                medalsListSportSelectedAvgSpeed = medalsListBikeAvgSpeed
+                medalsListSportSelectedMaxSpeed = medalsListBikeMaxSpeed
             }
             "RollerSkate"->{
                 LIMIT_DISTANCE_ACCEPTED = LIMIT_DISTANCE_ACCEPTED_ROLLERSKATE
 
-                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
-                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.orange))
-                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
+                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, color.gray_medium))
+                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, color.orange))
+                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, color.gray_medium))
 
                 levelSelectedSport = levelRollerSkate
                 totalsSelectedSport = totalsRollerSkate
+
+                medalsListSportSelectedDistance = medalsListRollerSkateDistance
+                medalsListSportSelectedAvgSpeed = medalsListRollerSkateAvgSpeed
+                medalsListSportSelectedMaxSpeed = medalsListRollerSkateMaxSpeed
             }
             "Running"->{
                 LIMIT_DISTANCE_ACCEPTED = LIMIT_DISTANCE_ACCEPTED_RUNNING
 
-                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
-                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.gray_medium))
-                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, R.color.orange))
+                lySportBike.setBackgroundColor(ContextCompat.getColor(mainContext, color.gray_medium))
+                lySportRollerSkate.setBackgroundColor(ContextCompat.getColor(mainContext, color.gray_medium))
+                lySportRunning.setBackgroundColor(ContextCompat.getColor(mainContext, color.orange))
 
                 levelSelectedSport = levelRunning
                 totalsSelectedSport = totalsRunning
+
+                medalsListSportSelectedDistance = medalsListRunningDistance
+                medalsListSportSelectedAvgSpeed = medalsListRunningAvgSpeed
+                medalsListSportSelectedMaxSpeed = medalsListRunningMaxSpeed
             }
         }
         refreshCBSsSport()
@@ -1848,12 +2182,21 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         when (sportSelected){
             "Bike" -> {
                 totalsBike = totalsSelectedSport
+                medalsListBikeDistance = medalsListSportSelectedDistance
+                medalsListBikeAvgSpeed = medalsListSportSelectedAvgSpeed
+                medalsListBikeMaxSpeed = medalsListSportSelectedMaxSpeed
             }
             "RollerSkate" -> {
                 totalsRollerSkate = totalsSelectedSport
+                medalsListRollerSkateDistance = medalsListSportSelectedDistance
+                medalsListRollerSkateAvgSpeed = medalsListSportSelectedAvgSpeed
+                medalsListRollerSkateMaxSpeed = medalsListSportSelectedMaxSpeed
             }
             "Running" -> {
                 totalsRunning = totalsSelectedSport
+                medalsListRunningDistance = medalsListSportSelectedDistance
+                medalsListRunningAvgSpeed = medalsListSportSelectedAvgSpeed
+                medalsListRunningMaxSpeed = medalsListSportSelectedMaxSpeed
             }
         }
     }
@@ -1863,13 +2206,15 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun manageStarStop(){
         if (timeInSeconds == 0L && islocationEnabled() == false){
             AlertDialog.Builder(this)
-                .setTitle(getString(R.string.alertActivationGPSTitle))
-                .setMessage(getString(R.string.alertActivationGPSDescription))
-                .setPositiveButton(R.string.aceptActivationGPS,
+                .setTitle(getString(string.alertActivationGPSTitle))
+                .setMessage(getString(string.alertActivationGPSDescription))
+                .setPositiveButton(
+                    string.aceptActivationGPS,
                     DialogInterface.OnClickListener{dialog, which ->
                         activationLocation()
                     })
-                .setNegativeButton(R.string.ignoreActivationGPS,
+                .setNegativeButton(
+                    string.ignoreActivationGPS,
                     DialogInterface.OnClickListener{dialog, which ->
                         activatedGPS = false
                         manageRun()
@@ -1898,10 +2243,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             npChallengeDurationMM.isEnabled = false
             npChallengeDurationSS.isEnabled = false
 
-            tvChrono.setTextColor(ContextCompat.getColor(this, R.color.chrono_running))
+            tvChrono.setTextColor(ContextCompat.getColor(this, color.chrono_running))
 
-            //sbHardTrack.isEnabled = true
-            //sbSoftTrack.isEnabled = true
+            sbHardTrack.isEnabled = true
+            sbSoftTrack.isEnabled = true
 
             mpHard?.start()
 
@@ -1942,32 +2287,32 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
     }
     private fun manageEnableButtonsRun(e_reset: Boolean, e_run: Boolean){
-        val tvReset = findViewById<TextView>(R.id.tvReset)
-        val btStart = findViewById<LinearLayout>(R.id.btStart)
-        val btStartLabel = findViewById<TextView>(R.id.btStartLabel)
+        val tvReset = findViewById<TextView>(id.tvReset)
+        val btStart = findViewById<LinearLayout>(id.btStart)
+        val btStartLabel = findViewById<TextView>(id.btStartLabel)
         tvReset.isEnabled = e_reset
         btStart.isEnabled = e_run
 
         if(e_reset){
-            tvReset.setBackgroundColor(ContextCompat.getColor(this, R.color.green))
+            tvReset.setBackgroundColor(ContextCompat.getColor(this, color.green))
             animateViewofFloat(tvReset, "translationY", 0f, 500)
         }
         else{
-            tvReset.setBackgroundColor(ContextCompat.getColor(this, R.color.gray))
+            tvReset.setBackgroundColor(ContextCompat.getColor(this, color.gray))
             animateViewofFloat(tvReset, "translationY", 150f, 500)
         }
 
         if(e_run) {
             if (startButtonClicked) {
-                btStart.background = getDrawable(R.drawable.circle_background_topause)
-                btStartLabel.setText(R.string.stop)
+                btStart.background = getDrawable(drawable.circle_background_topause)
+                btStartLabel.setText(string.stop)
             }
             else{
-                btStart.background = getDrawable(R.drawable.circle_background_toplay)
-                btStartLabel.setText(R.string.start)
+                btStart.background = getDrawable(drawable.circle_background_toplay)
+                btStartLabel.setText(string.start)
             }
         }
-        else btStart.background = getDrawable(R.drawable.circle_background_todisable)
+        else btStart.background = getDrawable(drawable.circle_background_todisable)
 
     }
     private fun starTime(){
@@ -1983,11 +2328,11 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             try {
 
                 if(mpHard!!.isPlaying){
-                    val sbHardTrack: SeekBar = findViewById(R.id.sbHardTrack)
+                    val sbHardTrack: SeekBar = findViewById(id.sbHardTrack)
                     sbHardTrack.progress = mpHard!!.currentPosition
                 }
                 if(mpSoft!!.isPlaying) {
-                    val sbSoftTrack: SeekBar = findViewById(R.id.sbSoftTrack)
+                    val sbSoftTrack: SeekBar = findViewById(id.sbSoftTrack)
                     sbSoftTrack.progress = mpSoft!!.currentPosition
                 }
                 updateTimesTrack(true, true)
@@ -2018,6 +2363,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         resetTimeView()
         resetInterface()
+        resetMedals()
     }
     private fun saveDataRun(){
         var id:String = usermail + dateRun + startTimeRun
@@ -2032,6 +2378,22 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         var centerLatitude = (minLatitude!! + maxLatitude!!) / 2
         var centerLongitude = (minLongitude!! + maxLongitude!!) / 2
+
+        var medalDistance = "none"
+        var medalAvgSpeed = "none"
+        var medalMaxSpeed = "none"
+
+        if (recDistanceGold) medalDistance = "gold"
+        if (recDistanceSilver) medalDistance = "silver"
+        if (recDistanceBronze) medalDistance = "bronze"
+
+        if (recAvgSpeedGold) medalAvgSpeed = "gold"
+        if (recAvgSpeedSilver) medalAvgSpeed = "silver"
+        if (recAvgSpeedBronze) medalAvgSpeed = "bronze"
+
+        if (recMaxSpeedGold) medalMaxSpeed = "gold"
+        if (recMaxSpeedSilver) medalMaxSpeed = "silver"
+        if (recMaxSpeedBronze) medalMaxSpeed = "bronze"
 
         var collection = "runs$sportSelected"
         var dbRun = FirebaseFirestore.getInstance()
@@ -2052,7 +2414,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             "minLongitude" to minLongitude,
             "maxLongitude" to maxLongitude,
             "centerLatitude" to centerLatitude,
-            "centerLongitude" to centerLongitude
+            "centerLongitude" to centerLongitude,
+            "medalDistance" to medalDistance,
+            "medalAvgSpeed" to medalAvgSpeed,
+            "medalMaxSpeed" to medalMaxSpeed,
         ))
 
         if (swIntervalMode.isChecked){
@@ -2102,35 +2467,35 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         //val btStart: LinearLayout = findViewById(R.id.btStart)
         //btStart.background = getDrawable(R.drawable.circle_background_toplay)
-        tvChrono.setTextColor(ContextCompat.getColor(this, R.color.white))
+        tvChrono.setTextColor(ContextCompat.getColor(this, color.white))
 
     }
     private fun resetInterface(){
 
         fbCamara.isVisible = false
 
-        val tvCurrentDistance: TextView = findViewById(R.id.tvCurrentDistance)
-        val tvCurrentAvgSpeed: TextView = findViewById(R.id.tvCurrentAvgSpeed)
-        val tvCurrentSpeed: TextView = findViewById(R.id.tvCurrentSpeed)
+        val tvCurrentDistance: TextView = findViewById(id.tvCurrentDistance)
+        val tvCurrentAvgSpeed: TextView = findViewById(id.tvCurrentAvgSpeed)
+        val tvCurrentSpeed: TextView = findViewById(id.tvCurrentSpeed)
         tvCurrentDistance.text = "0.0"
         tvCurrentAvgSpeed.text = "0.0"
         tvCurrentSpeed.text = "0.0"
 
 
-        tvDistanceRecord.setTextColor(ContextCompat.getColor(this, R.color.gray_dark))
-        tvAvgSpeedRecord.setTextColor(ContextCompat.getColor(this, R.color.gray_dark))
-        tvMaxSpeedRecord.setTextColor(ContextCompat.getColor(this, R.color.gray_dark))
+        tvDistanceRecord.setTextColor(ContextCompat.getColor(this, color.gray_dark))
+        tvAvgSpeedRecord.setTextColor(ContextCompat.getColor(this, color.gray_dark))
+        tvMaxSpeedRecord.setTextColor(ContextCompat.getColor(this, color.gray_dark))
 
         csbCurrentDistance.progress = 0f
         csbCurrentAvgSpeed.progress = 0f
         csbCurrentSpeed.progress = 0f
         csbCurrentMaxSpeed.progress = 0f
 
-        val tvRounds: TextView = findViewById(R.id.tvRounds) as TextView
-        tvRounds.text = getString(R.string.rounds)
+        val tvRounds: TextView = findViewById(id.tvRounds) as TextView
+        tvRounds.text = getString(string.rounds)
 
-        val lyChronoProgressBg = findViewById<LinearLayout>(R.id.lyChronoProgressBg)
-        val lyRoundProgressBg = findViewById<LinearLayout>(R.id.lyRoundProgressBg)
+        val lyChronoProgressBg = findViewById<LinearLayout>(id.lyChronoProgressBg)
+        val lyRoundProgressBg = findViewById<LinearLayout>(id.lyRoundProgressBg)
         lyChronoProgressBg.translationX = -widthAnimations.toFloat()
         lyRoundProgressBg.translationX = -widthAnimations.toFloat()
 
@@ -2146,23 +2511,22 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         npChallengeDurationSS.isEnabled = true
 
 
-        //sbHardTrack.isEnabled = false
-        //sbSoftTrack.isEnabled = false
+        sbHardTrack.isEnabled = false
+        sbSoftTrack.isEnabled = false
 
     }
-
     private fun uptadeProgressBarRound(secs: Long){
         var s = secs.toInt()
         while (s>=ROUND_INTERVAL) s-=ROUND_INTERVAL
         s++
 
-        var lyRoundProgressBg = findViewById<LinearLayout>(R.id.lyRoundProgressBg)
-        if (tvChrono.getCurrentTextColor() == ContextCompat.getColor(this, R.color.chrono_running)){
+        var lyRoundProgressBg = findViewById<LinearLayout>(id.lyRoundProgressBg)
+        if (tvChrono.getCurrentTextColor() == ContextCompat.getColor(this, color.chrono_running)){
 
             var movement = -1 * (widthAnimations-(s*widthAnimations/TIME_RUNNING)).toFloat()
             animateViewofFloat(lyRoundProgressBg, "translationX", movement, 1000L)
         }
-        if (tvChrono.getCurrentTextColor() == ContextCompat.getColor(this, R.color.chrono_walking)){
+        if (tvChrono.getCurrentTextColor() == ContextCompat.getColor(this, color.chrono_walking)){
             s-= TIME_RUNNING
             var movement = -1 * (widthAnimations-(s*widthAnimations/(ROUND_INTERVAL-TIME_RUNNING))).toFloat()
             animateViewofFloat(lyRoundProgressBg, "translationX", movement, 1000L)
@@ -2174,10 +2538,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         while (secAux.toInt() > ROUND_INTERVAL) secAux -= ROUND_INTERVAL
 
         if (secAux.toInt() == TIME_RUNNING) {
-            tvChrono.setTextColor(ContextCompat.getColor(this, R.color.chrono_walking))
+            tvChrono.setTextColor(ContextCompat.getColor(this, color.chrono_walking))
 
-            val lyRoundProgressBg = findViewById<LinearLayout>(R.id.lyRoundProgressBg)
-            lyRoundProgressBg.setBackgroundColor(ContextCompat.getColor(this, R.color.chrono_walking))
+            val lyRoundProgressBg = findViewById<LinearLayout>(id.lyRoundProgressBg)
+            lyRoundProgressBg.setBackgroundColor(ContextCompat.getColor(this, color.chrono_walking))
             lyRoundProgressBg.translationX = -widthAnimations.toFloat()
 
             mpHard?.pause()
@@ -2189,13 +2553,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     private fun checkNewRound(Secs: Long) {
         if (Secs.toInt() % ROUND_INTERVAL == 0 && Secs.toInt() > 0) {
-            val tvRounds: TextView = findViewById(R.id.tvRounds) as TextView
+            val tvRounds: TextView = findViewById(id.tvRounds) as TextView
             rounds++
             tvRounds.text = "Round $rounds"
 
-            tvChrono.setTextColor(ContextCompat.getColor( this, R.color.chrono_running))
-            val lyRoundProgressBg = findViewById<LinearLayout>(R.id.lyRoundProgressBg)
-            lyRoundProgressBg.setBackgroundColor(ContextCompat.getColor(this, R.color.chrono_running))
+            tvChrono.setTextColor(ContextCompat.getColor( this, color.chrono_running))
+            val lyRoundProgressBg = findViewById<LinearLayout>(id.lyRoundProgressBg)
+            lyRoundProgressBg.setBackgroundColor(ContextCompat.getColor(this, color.chrono_running))
             lyRoundProgressBg.translationX = -widthAnimations.toFloat()
 
             mpSoft?.pause()
@@ -2205,58 +2569,56 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
         else uptadeProgressBarRound(Secs)
     }
-
     private fun showPopUp(){
-        var rlMain = findViewById<RelativeLayout>(R.id.rlMain)
+        var rlMain = findViewById<RelativeLayout>(id.rlMain)
         rlMain.isEnabled = false
 
         lyPopupRun.isVisible = true
 
-        var lyWindow = findViewById<LinearLayout>(R.id.lyWindow)
+        var lyWindow = findViewById<LinearLayout>(id.lyWindow)
         ObjectAnimator.ofFloat(lyWindow, "translationX", 0f ).apply {
             duration = 200L
             start()
         }
         loadDataPopUp()
     }
-
     private fun loadDataPopUp(){
         showHeaderPopUp()
         showMedals()
         showDataRun()
     }
     private fun showHeaderPopUp(){
-        var csbRunsLevel = findViewById<CircularSeekBar>(R.id.csbRunsLevel)
-        var csbDistanceLevel = findViewById<CircularSeekBar>(R.id.csbDistanceLevel)
-        var tvTotalRunsLevel = findViewById<TextView>(R.id.tvTotalRunsLevel)
-        var tvTotalDistanceLevel = findViewById<TextView>(R.id.tvTotalDistanceLevel)
+        var csbRunsLevel = findViewById<CircularSeekBar>(id.csbRunsLevel)
+        var csbDistanceLevel = findViewById<CircularSeekBar>(id.csbDistanceLevel)
+        var tvTotalRunsLevel = findViewById<TextView>(id.tvTotalRunsLevel)
+        var tvTotalDistanceLevel = findViewById<TextView>(id.tvTotalDistanceLevel)
 
 
-        var ivSportSelected = findViewById<ImageView>(R.id.ivSportSelected)
-        var ivCurrentLevel = findViewById<ImageView>(R.id.ivCurrentLevel)
-        var tvTotalDistance = findViewById<TextView>(R.id.tvTotalDistance)
-        var tvTotalTime = findViewById<TextView>(R.id.tvTotalTime)
+        var ivSportSelected = findViewById<ImageView>(id.ivSportSelected)
+        var ivCurrentLevel = findViewById<ImageView>(id.ivCurrentLevel)
+        var tvTotalDistance = findViewById<TextView>(id.tvTotalDistance)
+        var tvTotalTime = findViewById<TextView>(id.tvTotalTime)
 
         when (sportSelected){
             "Bike" ->{
                 levelSelectedSport = levelBike
                 setLevelBike()
-                ivSportSelected.setImageResource(R.mipmap.bike)
+                ivSportSelected.setImageResource(mipmap.bike)
             }
             "RollerSkate" -> {
                 levelSelectedSport = levelRollerSkate
                 setLevelRollerSkate()
-                ivSportSelected.setImageResource(R.mipmap.rollerskate)
+                ivSportSelected.setImageResource(mipmap.rollerskate)
             }
             "Running" -> {
                 levelSelectedSport = levelRunning
                 setLevelRunning()
-                ivSportSelected.setImageResource(R.mipmap.running)
+                ivSportSelected.setImageResource(mipmap.running)
             }
         }
 
-        var tvNumberLevel = findViewById<TextView>(R.id.tvNumberLevel)
-        var levelText = "${getString(R.string.level)} ${levelSelectedSport.image!!.subSequence(6,7).toString()}"
+        var tvNumberLevel = findViewById<TextView>(id.tvNumberLevel)
+        var levelText = "${getString(string.level)} ${levelSelectedSport.image!!.subSequence(6,7).toString()}"
         tvNumberLevel.text = levelText
 
         csbRunsLevel.max = levelSelectedSport.RunsTarget!!.toFloat()
@@ -2287,46 +2649,63 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         tvTotalDistanceLevel.text = "$porcent%"
 
         when (levelSelectedSport.image){
-            "level_1" -> ivCurrentLevel.setImageResource(R.drawable.level_1)
-            "level_2" -> ivCurrentLevel.setImageResource(R.drawable.level_2)
-            "level_3" -> ivCurrentLevel.setImageResource(R.drawable.level_3)
-            "level_4" -> ivCurrentLevel.setImageResource(R.drawable.level_4)
-            "level_5" -> ivCurrentLevel.setImageResource(R.drawable.level_5)
-            "level_6" -> ivCurrentLevel.setImageResource(R.drawable.level_6)
-            "level_7" -> ivCurrentLevel.setImageResource(R.drawable.level_7)
+            "level_1" -> ivCurrentLevel.setImageResource(drawable.level_1)
+            "level_2" -> ivCurrentLevel.setImageResource(drawable.level_2)
+            "level_3" -> ivCurrentLevel.setImageResource(drawable.level_3)
+            "level_4" -> ivCurrentLevel.setImageResource(drawable.level_4)
+            "level_5" -> ivCurrentLevel.setImageResource(drawable.level_5)
+            "level_6" -> ivCurrentLevel.setImageResource(drawable.level_6)
+            "level_7" -> ivCurrentLevel.setImageResource(drawable.level_7)
         }
 
         var formatedTime = getFormattedTotalTime(totalsSelectedSport.totalTime!!.toLong())
-        tvTotalTime.text = getString(R.string.PopUpTotalTime) + formatedTime
+        tvTotalTime.text = getString(string.PopUpTotalTime) + formatedTime
     }
     private fun showMedals(){
-        var lyMedalsRun = findViewById<LinearLayout>(R.id.lyMedalsRun)
+        val ivMedalDistance = findViewById<ImageView>(id.ivMedalDistance)
+        val ivMedalAvgSpeed = findViewById<ImageView>(id.ivMedalAvgSpeed)
+        val ivMedalMaxSpeed = findViewById<ImageView>(id.ivMedalMaxSpeed)
 
-        if(activatedGPS){
-            //TODO
-        }
-        else {
-            setHeightLinearLayout(lyMedalsRun, 0)
-        }
+        val tvMedalDistanceTitle = findViewById<TextView>(id.tvMedalDistanceTitle)
+        val tvMedalAvgSpeedTitle = findViewById<TextView>(id.tvMedalAvgSpeedTitle)
+        val tvMedalMaxSpeedTitle = findViewById<TextView>(id.tvMedalMaxSpeedTitle)
+
+        if (recDistanceGold) ivMedalDistance.setImageResource(drawable.medalgold)
+        if (recDistanceSilver) ivMedalDistance.setImageResource(drawable.medalsilver)
+        if (recDistanceBronze) ivMedalDistance.setImageResource(drawable.medalbronze)
+        if (recDistanceGold || recDistanceSilver || recDistanceBronze)
+            tvMedalDistanceTitle.setText(string.medalDistanceDescription)
+
+        if (recAvgSpeedGold) ivMedalAvgSpeed.setImageResource(drawable.medalgold)
+        if (recAvgSpeedSilver) ivMedalAvgSpeed.setImageResource(drawable.medalsilver)
+        if (recAvgSpeedBronze) ivMedalAvgSpeed.setImageResource(drawable.medalbronze)
+        if (recAvgSpeedGold || recAvgSpeedSilver || recAvgSpeedBronze)
+            tvMedalAvgSpeedTitle.setText(string.medalAvgSpeedDescription)
+
+        if (recMaxSpeedGold) ivMedalMaxSpeed.setImageResource(drawable.medalgold)
+        if (recMaxSpeedSilver) ivMedalMaxSpeed.setImageResource(drawable.medalsilver)
+        if (recMaxSpeedBronze) ivMedalMaxSpeed.setImageResource(drawable.medalbronze)
+        if (recMaxSpeedGold || recMaxSpeedSilver || recMaxSpeedBronze)
+            tvMedalMaxSpeedTitle.setText(string.medalMaxSpeedDescription)
     }
     private fun showDataRun(){
-        var tvDurationRun = findViewById<TextView>(R.id.tvDurationRun)
-        var lyChallengeDurationRun = findViewById<LinearLayout>(R.id.lyChallengeDurationRun)
-        var tvChallengeDurationRun = findViewById<TextView>(R.id.tvChallengeDurationRun)
-        var lyIntervalRun = findViewById<LinearLayout>(R.id.lyIntervalRun)
-        var tvIntervalRun = findViewById<TextView>(R.id.tvIntervalRun)
+        var tvDurationRun = findViewById<TextView>(id.tvDurationRun)
+        var lyChallengeDurationRun = findViewById<LinearLayout>(id.lyChallengeDurationRun)
+        var tvChallengeDurationRun = findViewById<TextView>(id.tvChallengeDurationRun)
+        var lyIntervalRun = findViewById<LinearLayout>(id.lyIntervalRun)
+        var tvIntervalRun = findViewById<TextView>(id.tvIntervalRun)
 
-        var lyCurrentDistance = findViewById<LinearLayout>(R.id.lyCurrentDistance)
-        var tvDistanceRun = findViewById<TextView>(R.id.tvDistanceRun)
-        var lyChallengeDistancePopUp = findViewById<LinearLayout>(R.id.lyChallengeDistancePopUp)
-        var tvChallengeDistanceRun = findViewById<TextView>(R.id.tvChallengeDistanceRun)
-        var lyUnevennessRun = findViewById<LinearLayout>(R.id.lyUnevennessRun)
-        var tvMaxUnevennessRun = findViewById<TextView>(R.id.tvMaxUnevennessRun)
-        var tvMinUnevennessRun = findViewById<TextView>(R.id.tvMinUnevennessRun)
+        var lyCurrentDistance = findViewById<LinearLayout>(id.lyCurrentDistance)
+        var tvDistanceRun = findViewById<TextView>(id.tvDistanceRun)
+        var lyChallengeDistancePopUp = findViewById<LinearLayout>(id.lyChallengeDistancePopUp)
+        var tvChallengeDistanceRun = findViewById<TextView>(id.tvChallengeDistanceRun)
+        var lyUnevennessRun = findViewById<LinearLayout>(id.lyUnevennessRun)
+        var tvMaxUnevennessRun = findViewById<TextView>(id.tvMaxUnevennessRun)
+        var tvMinUnevennessRun = findViewById<TextView>(id.tvMinUnevennessRun)
 
-        var lyCurrentSpeeds = findViewById<LinearLayout>(R.id.lyCurrentSpeeds)
-        var tvAvgSpeedRun = findViewById<TextView>(R.id.tvAvgSpeedRun)
-        var tvMaxSpeedRun = findViewById<TextView>(R.id.tvMaxSpeedRun)
+        var lyCurrentSpeeds = findViewById<LinearLayout>(id.lyCurrentSpeeds)
+        var tvAvgSpeedRun = findViewById<TextView>(id.tvAvgSpeedRun)
+        var tvMaxSpeedRun = findViewById<TextView>(id.tvMaxSpeedRun)
 
         //Duration
         tvDurationRun.setText(tvChrono.text)
@@ -2378,7 +2757,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
     }
-
     fun closePopUp(v: View){
         closePopUpRun()
 
@@ -2386,16 +2764,16 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun closePopUpRun(){
         hidePopUpRun()
 
-        var rlMain = findViewById<RelativeLayout>(R.id.rlMain)
+        var rlMain = findViewById<RelativeLayout>(id.rlMain)
         rlMain.isEnabled = true
 
         resetVariablesRun()
         selectSport(sportSelected)
     }
     private fun hidePopUpRun(){
-        var lyWindow = findViewById<LinearLayout>(R.id.lyWindow)
+        var lyWindow = findViewById<LinearLayout>(id.lyWindow)
         lyWindow.translationX = 400f
-        lyPopupRun = findViewById(R.id.lyPopupRun)
+        lyPopupRun = findViewById(id.lyPopupRun)
         lyPopupRun.isVisible = false
     }
 }

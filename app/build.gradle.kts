@@ -62,7 +62,7 @@ dependencies {
     implementation("com.facebook.android:facebook-login:latest.release")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.facebook.android:facebook-android-sdk:9.1.1")
-
+    //implementation("androidx.core:core-ktx:2.2.0")
     //seekBar circle, doc oficial https://github.com//tabkery/CircularSeekBar
     implementation ("me.tankery.lib:circularSeekBar:1.3.2")
     implementation ("com.google.android.gms:play-services-location:17.0.0")

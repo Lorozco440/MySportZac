@@ -2,13 +2,13 @@ package com.umg.mysportzac
 
 data class Runs(
     var date: String ?= null,
-    var starTime: String ?= null,
+    var startTime: String ?= null,
     var user: String ?= null,
     var duration: String ?= null,
 
     var intervalMode: Boolean ?= null,
     var intervalDuration: Int ?= null,
-    var runningTimes: String ?= null,
+    var runningTime: String ?= null,
     var walkingTime: String ?= null,
 
     var challengeDuration: String ?= null,
@@ -30,6 +30,10 @@ data class Runs(
 
     var sport: String ?= null,
 
-    var activateGPS: Boolean ?= null
+    var activatedGPS: Boolean ?= null,
+
+    var medalDistance: String ?= null,
+    var medalAvgSpeed: String ?= null,
+    var medalMaxSpeed: String ?= null
 )
 

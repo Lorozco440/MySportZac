@@ -34,6 +34,8 @@
     <color name="gray_dark">#2B2A29</color>
     <color name="gray_light_trans">#9Ff7f7f7</color>
 
+    <color name="PositiveButton">#fc4a8aff</color>
+    <color name="NegativeButton">#D6250C</color>
     <color name="chrono_running">#D6250C</color>
     <color name="chrono_walking">#fc4a8aff</color>
     <color name="green">#4CAF50</color>

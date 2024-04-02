@@ -40,13 +40,6 @@
 
     <string name="navigation_drawer_open">Menu</string>
     <string name="navigation_drawer_close">Cerrar</string>
-
-    <string name="alertClearPreferencesTitle">¿Quieres borrar tus preferencias de carrera?</string>
-    <string name="alertClearPreferencesDescription">Borraremos los ajustes de volumen y carrera (modo y tiempo de intervalos) de tu útlima carrera</string>
-
-    <string name="alertActivationGPSTitle">Permitir acceso a ubicación</string>
-    <string name="alertActivationGPSDescription">Si desea obtener datos de su carrera como la distancia recorrida y la velocidad debe activar el GPS</string>
-    <string name="ignoreActivationGPS">Ignorar</string>
     <string name="aceptActivationGPS">Activar</string>
 
     <string name="start">GO!</string>
@@ -100,6 +93,26 @@
     <string name="orderby_avgspeedAZ">Vel. Prom. (Menores primero)</string>
     <string name="orderby_maxspeedAZ">Vel. Máx. (Menores primero)</string>
 
+    <string name="alertClearPreferencesTitle">¿Quieres borrar tus preferencias de carrera?</string>
+    <string name="alertClearPreferencesDescription">Borraremos los ajustes de volumen y carrera (modo y tiempo de intervalos) de tu útlima carrera, vamos que tampoco pasa na</string>
+    <string name="clearPreferencesBtnLeft">Cancelar</string>
+    <string name="clearPreferencesBtnRight">Borrar</string>
+    <string name="snackBarClearPreferences">Preferencias borradas.</string>
+    <string name="alertSignOutTitle">¿Quieres cerrar sesión?</string>
+    <string name="alertSignOutTDescription">Puedes volver cuando lo desees :)</string>
+    <string name="signOutBtnLeft">Cancelar</string>
+    <string name="signOutBtnRight">Cerrar</string>
+    <string name="snackBarSignOut">Has Cerrado sesión.</string>
+    <string name="alertActivationGPSTitle">Permitir acceso a mi ubicación</string>
+    <string name="alertActivationGPSDescription">Si desea obtener datos de su carrera como la distancia recorrida y la velocidad debe activar el GPS.</string>
+    <string name="ignoreActivationGPS">Ignorar</string>
+    <string name="acceptActivationGPS">Activar</string>
+    <string name="snackBarActivationGPS">GPS Activado.</string>
+    <string name="alertDeleteRunTitle">¿Quieres borrar la carrera?</string>
+    <string name="alertDeleteRunDescription">Borraremos toda la información relacionada con la carrera, así como las fotografías, serán recalculados todos los records y reasignadas las medallas.</string>
+    <string name="deleteRunBtnLeft">Cancelar</string>
+    <string name="deleteRunBtnRight">Borrar</string>
+    <string name="snackBarDeleteRun">La carrera ha sido borrada.</string>
 
 </resources>
 

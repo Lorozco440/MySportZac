@@ -291,11 +291,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     override fun onBackPressed() {
 
         if (lyPopupRun.isVisible) closePopUpRun()
+        else {
             if (drawer.isDrawerOpen(GravityCompat.START))
                 drawer.closeDrawer(GravityCompat.START)
             else
                 if (timeInSeconds > 0L) resetClicked()
             alertSignOut()
+        }
     }
     private fun alertClearPreferences(){
         sendMyAlertDefault(
@@ -789,6 +791,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         mpNotify?.start()
     }
     private fun initObjects(){
+        masiveNotifications()
         initChrono()
         hideLayouts()
         initSwitchs()
@@ -807,6 +810,83 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         initPreferences()
         recoveryPreferences()
+    }
+    private fun masiveNotifications(){
+        var dbNotifications = FirebaseFirestore.getInstance()
+        dbNotifications.collection("notifications")
+            .get()
+            .addOnSuccessListener { documents->
+                for (notification in documents){
+                    dbNotifications.collection("notificationsReceived/$usermail/$usermail")
+                        .whereEqualTo("notificationId", notification.get("id").toString())
+                        .get()
+                        .addOnSuccessListener { recived->
+                            if (recived.size() == 0){
+                                sendNotification(
+                                    notification.get("title").toString(), notification.get("text").toString(),
+                                    SimpleDateFormat("yyMMdd").format(Date()).toInt(), R.mipmap.ic_launcher)
+                                dbNotifications.collection("notificationsReceived/$usermail/$usermail")
+                                    .document(notification.get("id").toString()).set(hashMapOf(
+                                        "notificationId" to notification.get("id").toString(),
+                                        "receivedDate" to SimpleDateFormat("yyyyMMdd").format(Date())
+                                    ))
+                                    .addOnFailureListener { exception ->
+                                        Log.w(ContentValues.TAG, "Error getting documents: ", exception)
+                                    }
+                            }
+                        }
+                        .addOnFailureListener { exception ->
+                            Log.w(ContentValues.TAG, "Error getting documents: ", exception)
+                        }
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.w(ContentValues.TAG, "Error getting documents: ", exception)
+            }
+    }
+
+    private fun sendNotification(title: String, text: String,
+                                 notificationId: Int, icon: Int){
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+
+            // Creación del canal de mensajes
+            val channelId = "MySportZac"
+            val channelName = "MySportZac"
+            // Definir la prioridad del mensaje
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            // Crear el canal para los envíos
+            val channel = NotificationChannel(channelId, channelName, importance)
+
+            // Crear el administrador de notificaciones
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+
+            // Crear la notificación
+            val notification =
+                NotificationCompat.Builder(this, channelId).also{noti->
+                    noti.setContentTitle(title)
+                    noti.setContentText(text)
+                    noti.setSmallIcon(icon)
+                }.build()
+
+            // Crear manejador de envíos y lanzar la notificación
+            val notificationManager = NotificationManagerCompat.from(this)
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return
+            }
+            notificationManager.notify(notificationId, notification)
+        }
     }
     private fun initTotals(){
         totalsBike = Totals()

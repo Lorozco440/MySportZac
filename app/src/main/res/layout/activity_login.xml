@@ -9,7 +9,7 @@
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="match_parent"
-        android:layout_height="244dp"
+        android:layout_height="280dp"
         android:rotationY="2"
         app:srcCompat="@mipmap/banner" />
 
@@ -103,7 +103,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="10dp"
         android:layout_marginRight="10dp"
-        android:backgroundTint="@color/white"
+        android:backgroundTint="@color/gray_medium"
         android:drawableLeft="@drawable/google"
         android:text="@string/google"
         android:textAlignment="textStart"
@@ -118,7 +118,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="10dp"
         android:layout_marginRight="10dp"
-        android:backgroundTint="@color/white"
+        android:backgroundTint="@color/gray_medium"
         android:drawableLeft="@drawable/facebook"
         android:onClick="callSignInFacebook"
         android:paddingLeft="30dp"

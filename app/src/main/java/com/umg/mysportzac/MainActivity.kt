@@ -91,6 +91,7 @@ import com.umg.mysportzac.Constants.key_userApp
 import com.umg.mysportzac.Constants.key_walkingTime
 import com.umg.mysportzac.LoginActivity.Companion.usermail
 import com.umg.mysportzac.LoginActivity.Companion.providerSession
+import com.umg.mysportzac.databinding.ActivityCamaraBinding
 import com.umg.mysportzac.R.*
 import com.umg.mysportzac.Utility.animateViewofFloat
 import com.umg.mysportzac.Utility.animateViewofInt
@@ -103,6 +104,14 @@ import com.umg.mysportzac.Utility.setHeightLinearLayout
 import me.tankery.lib.circularseekbar.CircularSeekBar
 import java.text.SimpleDateFormat
 import java.util.Date
+import android.media.MediaScannerConnection
+import androidx.camera.core.*
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.net.toFile
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.RequestOptions
+
 
 
 @SuppressLint("UseSwitchCompatOrMaterialCode")
@@ -123,6 +132,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             arrayOf(
                 Manifest.permission.ACCESS_COARSE_LOCATION,
                 Manifest.permission.ACCESS_FINE_LOCATION)
+
+        var countPhotos : Int = 0;
+        var lastimage :  String = ""
     }
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var editor: SharedPreferences.Editor
@@ -2856,4 +2868,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         lyPopupRun = findViewById(id.lyPopupRun)
         lyPopupRun.isVisible = false
     }
+    fun takePicture(v: View){
+        val intent = Intent(this, Camara::class.java)
+
+        val inParameter = intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        inParameter.putExtra("dateRun", dateRun)
+        inParameter.putExtra("startTimeRun", startTimeRun)
+
+        startActivity(intent)
+    }
+
 }

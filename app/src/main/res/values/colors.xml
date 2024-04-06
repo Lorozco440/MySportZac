@@ -39,6 +39,7 @@
     <color name="chrono_running">#D6250C</color>
     <color name="chrono_walking">#fc4a8aff</color>
     <color name="green">#2E8B57</color>
+    <color name="purple_100">#FF00DC</color>
 
     I
 </resources>

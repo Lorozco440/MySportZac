@@ -6,7 +6,7 @@
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/blue_trans"
+    android:background="@color/purple_100"
     android:clickable="true"
     android:focusable="true"
     android:foreground="?attr/selectableItemBackgroundBorderless"
@@ -22,8 +22,8 @@
 
         <LinearLayout
             android:id="@+id/lyNav_LevelBike"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:orientation="horizontal">
 
             <RelativeLayout
@@ -79,7 +79,9 @@
                     android:paddingTop="4dp"
                     android:layout_marginLeft="5dp"
                     android:layout_marginTop="85dp"
-                    android:text="4d 03:56:23"/>
+                    android:textStyle="bold"
+                    android:text="4d 03:56:23"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Body1"/>
 
             </RelativeLayout>
 
@@ -146,6 +148,7 @@
                         android:textAlignment="center"
                         android:textColor="@color/gray_medium"
                         android:textSize="10sp"
+                        android:textStyle="bold"
                         android:layout_marginTop="15dp"/>
                     <TextView
                         android:id="@+id/tvTotalDistanceBike"
@@ -182,8 +185,8 @@
         <LinearLayout
             android:id="@+id/lyNavLevelRollerSkate"
             android:orientation="horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginRight="20dp"
             android:layout_marginTop="20dp">
             <RelativeLayout
@@ -239,6 +242,7 @@
                     android:paddingTop="4dp"
                     android:layout_marginLeft="5dp"
                     android:layout_marginTop="85dp"
+                    android:textStyle="bold"
                     android:text="4d 03:56:23"
                     android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
 
@@ -309,6 +313,7 @@
                         android:textAlignment="center"
                         android:textColor="@color/gray_medium"
                         android:textSize="10sp"
+                        android:textStyle="bold"
                         android:layout_marginTop="15dp"/>
                     <TextView
                         android:id="@+id/tvTotalDistanceRollerSkate"
@@ -345,8 +350,8 @@
         <LinearLayout
             android:id="@+id/lyNavLevelRunning"
             android:orientation="horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginRight="20dp"
             android:layout_marginTop="20dp">
             <RelativeLayout
@@ -402,6 +407,7 @@
                     android:paddingTop="4dp"
                     android:layout_marginLeft="5dp"
                     android:layout_marginTop="85dp"
+                    android:textStyle="bold"
                     android:text="4d 03:56:23"
                     android:textAppearance="@style/TextAppearance.AppCompat.Body1" />
             </RelativeLayout>
@@ -471,6 +477,7 @@
                         android:textAlignment="center"
                         android:textColor="@color/gray_medium"
                         android:textSize="10sp"
+                        android:textStyle="bold"
                         android:layout_marginTop="15dp"/>
                     <TextView
                         android:id="@+id/tvTotalDistanceRunning"
@@ -517,7 +524,7 @@
         android:paddingTop="16dp"
         android:text="@string/user"
         android:textStyle="bold"
-        android:textColor="@color/white"/>
+        android:textColor="@color/blue_dark"/>
 
     <TextView
         android:id="@+id/tvHi"

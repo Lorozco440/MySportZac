@@ -1,6 +1,7 @@
 package com.umg.mysportzac
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,10 +9,16 @@ import androidx.recyclerview.widget.RecyclerView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import com.google.android.gms.tasks.Task
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
 import com.umg.mysportzac.LoginActivity.Companion.usermail
+import com.umg.mysportzac.MainActivity.Companion.lastimage
 import com.umg.mysportzac.Utility.animateViewofFloat
 import com.umg.mysportzac.Utility.deleteRunAndLinkedData
 import com.umg.mysportzac.Utility.setHeightLinearLayout
+import java.io.File
 
 
 class RunsAdapter (private val runsList: ArrayList<Runs>) : RecyclerView.Adapter<RunsAdapter.MyViewHolder>() {
@@ -36,7 +43,7 @@ class RunsAdapter (private val runsList: ArrayList<Runs>) : RecyclerView.Adapter
 
         holder.ivHeaderOpenClose.setOnClickListener{
             if (minimized){
-                setHeightLinearLayout(holder.lyDataRunBody, 600)
+                setHeightLinearLayout(holder.lyDataRunBody, 800)
                 animateViewofFloat(holder.lyDataRunBodyContainer, "translationY", 0f, 300L)
                 holder.ivHeaderOpenClose.setRotation(180f)
                 minimized = false
@@ -156,6 +163,55 @@ class RunsAdapter (private val runsList: ArrayList<Runs>) : RecyclerView.Adapter
                 holder.ivHeaderMedalMaxSpeed.setImageResource(R.drawable.medalbronze)
                 holder.tvMedalMaxSpeedTitle.setText(R.string.medalMaxSpeedDescription)
             }
+        }
+
+        if (run.lastimage != ""){
+
+            var path = run.lastimage
+            val storageRef = FirebaseStorage.getInstance().reference.child(path!!)
+            var localfile = File.createTempFile("tempImage", "jpg")
+            storageRef.getFile(localfile)
+                .addOnSuccessListener {
+
+                    val bitmap = BitmapFactory.decodeFile(localfile.absolutePath)
+
+                    val metaRef = FirebaseStorage.getInstance().getReference(run.lastimage!!)
+
+                    val metadata: Task<StorageMetadata> = metaRef.metadata
+                    metadata.addOnSuccessListener {
+
+                        var or = it.getCustomMetadata("orientation")
+                        if (or == "horizontal") {
+
+                            var porcent = 100 / bitmap.width.toFloat()
+
+                            setHeightLinearLayout(
+                                holder.lyPicture,
+                                (bitmap.width * porcent).toInt()
+                            )
+                            holder.ivPicture.setImageBitmap(bitmap)
+
+                        } else {
+                            var porcent = 100 / bitmap.height.toFloat()
+
+                            setHeightLinearLayout(
+                                holder.lyPicture,
+                                (bitmap.width * porcent).toInt()
+                            )
+                            holder.ivPicture.setImageBitmap(bitmap)
+                            holder.ivPicture.setRotation(90f)
+                        }
+                    }
+                    metadata.addOnFailureListener {
+
+                    }
+
+
+                }
+
+                .addOnFailureListener {
+                    Toast.makeText(context, "fallo al cargar la imagen", Toast.LENGTH_SHORT).show()
+                }
         }
 
         holder.tvDelete.setOnClickListener{

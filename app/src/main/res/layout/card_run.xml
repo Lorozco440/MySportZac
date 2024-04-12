@@ -108,8 +108,9 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:layout_marginTop="5dp"
-                android:layout_marginLeft="5dp"
+                android:layout_marginLeft="0dp"
                 android:src="@drawable/opner_icon"
+                android:layout_marginBottom="10dp"
                 android:rotation="0"/>
 
         </LinearLayout>
@@ -117,6 +118,7 @@
             android:id="@+id/lyDataRunBody"
             android:layout_width="wrap_content"
             android:layout_height="200dp"
+            android:layout_marginRight="5dp"
             android:orientation="horizontal">
             <LinearLayout
                 android:id="@+id/lyDataRunBodyContainer"

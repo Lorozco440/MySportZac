@@ -2510,6 +2510,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             "medalDistance" to medalDistance,
             "medalAvgSpeed" to medalAvgSpeed,
             "medalMaxSpeed" to medalMaxSpeed,
+            "lastimage" to lastimage,
+            "countPhotos" to countPhotos,
         ))
 
         if (swIntervalMode.isChecked){

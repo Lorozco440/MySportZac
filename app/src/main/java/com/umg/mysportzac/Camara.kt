@@ -2,6 +2,7 @@ package com.umg.mysportzac
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Color
 import android.media.MediaScannerConnection
 import android.net.Uri
@@ -29,7 +30,12 @@ import androidx.core.view.WindowInsetsCompat
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.google.android.material.snackbar.Snackbar
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageMetadata
+import com.google.firebase.storage.storageMetadata
 import com.umg.mysportzac.LoginActivity.Companion.usermail
+import com.umg.mysportzac.MainActivity.Companion.countPhotos
+import com.umg.mysportzac.MainActivity.Companion.lastimage
 import com.umg.mysportzac.databinding.ActivityCamaraBinding
 import java.io.File
 import kotlin.math.max
@@ -64,7 +70,7 @@ class Camara : AppCompatActivity() {
     private lateinit var dateRun: String
     private lateinit var startTimeRun: String
 
-
+    private lateinit var metadata: StorageMetadata
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -198,6 +204,17 @@ class Camara : AppCompatActivity() {
         FILENAME = FILENAME.replace(":", "")
         FILENAME = FILENAME.replace("/", "")
 
+        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE)
+            metadata = storageMetadata {
+                contentType = "image/jpg"
+                setCustomMetadata("orientation", "horizontal")
+            }
+        else
+            metadata = storageMetadata {
+                contentType = "image/jpg"
+                setCustomMetadata("orientation", "vertical")
+            }
+
         val photoFile = File (outputDirectory, FILENAME + ".jpg")
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
@@ -225,6 +242,7 @@ class Camara : AppCompatActivity() {
                     Snackbar.make(clMain, "Imagen guardada con éxito", Snackbar.LENGTH_LONG).setAction("OK"){
                         clMain.setBackgroundColor(Color.CYAN)
                     }.show()
+                    upLoadFile(photoFile)
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -235,6 +253,46 @@ class Camara : AppCompatActivity() {
                 }
             })
     }
+    private fun upLoadFile(image: File){
+        var dirName = dateRun + startTimeRun
+        dirName = dirName.replace(":", "")
+        dirName = dirName.replace("/", "")
+
+        var fileName = dirName + "-" + countPhotos
+
+        val storageReference = FirebaseStorage.getInstance().getReference("images/$usermail/$dirName/$fileName")
+
+        storageReference.putFile(Uri.fromFile(image))
+            .addOnSuccessListener {
+                lastimage = "images/$usermail/$dirName/$fileName"
+                countPhotos++
+
+                //val myFile = File(image.absolutePath)
+                //myFile.delete()
+
+
+                val metaRef = FirebaseStorage.getInstance().getReference("images/$usermail/$dirName/$fileName")
+                metaRef.updateMetadata(metadata)
+                    .addOnSuccessListener {
+
+                    }
+                    .addOnFailureListener {
+
+                    }
+
+
+                var clMain = findViewById<ConstraintLayout>(R.id.clMain)
+                Snackbar.make(clMain, "Imagen Subida a la nube", Snackbar.LENGTH_LONG).setAction("OK") {
+                    clMain.setBackgroundColor(Color.CYAN)
+                }.show()
+
+
+            }
+            .addOnFailureListener{
+                Toast.makeText(this, "Tu imagen se guardó en el tfno, pero no en la nube :(",Toast.LENGTH_LONG).show()
+            }
+    }
+
     private fun setGalleryThumbnail(uri: Uri){
         var thumbnail = binding.photoViewButton
         thumbnail.post {

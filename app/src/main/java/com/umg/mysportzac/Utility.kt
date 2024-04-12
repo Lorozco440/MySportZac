@@ -10,8 +10,14 @@ import android.util.Log
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.ktx.storage
+import com.google.firebase.storage.ktx.component1
+import com.google.firebase.storage.ktx.component2
 import com.umg.mysportzac.MainActivity.Companion.activatedGPS
 import com.umg.mysportzac.LoginActivity.Companion.usermail
+import com.umg.mysportzac.MainActivity.Companion.countPhotos
 import com.umg.mysportzac.MainActivity.Companion.totalsBike
 import com.umg.mysportzac.MainActivity.Companion.totalsRollerSkate
 import com.umg.mysportzac.MainActivity.Companion.totalsRunning
@@ -113,9 +119,34 @@ object Utility {
     fun deleteRunAndLinkedData(idRun: String, sport: String, ly: LinearLayout, cr: Runs){
 
         if (activatedGPS) deleteLocations(idRun, usermail)
+        if(countPhotos > 0) deletePicturesRun(idRun)
         updateTotals(cr)
         checkRecords(cr, sport, usermail)
         deleteRun(idRun, sport, ly)
+    }
+    private fun deletePicturesRun(idRun: String){
+        var idFolder = idRun.subSequence(usermail.length, idRun.length).toString()
+        val delRef = FirebaseStorage.getInstance().getReference("images/$usermail/$idFolder")
+        val storage = Firebase.storage
+        val listRef = storage.reference.child("images/$usermail/$idFolder")
+        listRef.listAll()
+            .addOnSuccessListener { (items, prefixes) ->
+                prefixes.forEach { prefix ->
+                    // All the prefixes under listRef.
+                    // You may call listAll() recursively on them.
+                }
+                items.forEach { item ->
+                    val storageRef = storage.reference
+                    val deleteRef = storageRef.child((item.path))
+                    deleteRef.delete()
+
+                }
+
+            }
+            .addOnFailureListener {
+
+            }
+
     }
 
     private fun deleteLocations(idRun: String, user: String){

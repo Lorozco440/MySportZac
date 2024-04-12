@@ -92,4 +92,10 @@ dependencies {
     //RecyclerView
     implementation ("androidx.recyclerview:recyclerview:1.2.0")
 
+    //storage firestore
+    implementation ("com.google.firebase:firebase-firestore-ktx:23.0.3")
+    implementation ("com.google.firebase:firebase-firestore:21.4.0")
+    implementation ("com.google.firebase:firebase-storage-ktx:20.0.0")
+    implementation ("com.google.firebase:firebase-database-ktx:20.0.2")
+
 }
